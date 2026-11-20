@@ -1,0 +1,486 @@
+---
+title: "Quantifier la charge d'entraînement de cyclistes"
+subtitle: ""
+author: "FARSI Imad - ORLANDI Zoé - GEINDRE Colin - COVA CORREA Camilo"
+date: today
+lang: fr
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    code-copy: true
+    code-overflow: wrap
+    code-fold: show
+    df-print: kable
+    theme: cosmo
+    fig-width: 8
+    fig-height: 4.5
+    fig-align: center
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+knitr:
+  opts_chunk:
+    comment: "#>"
+    dev: "png"
+    dpi: 120
+---
+
+::: {.callout-note appearance="simple" icon="false"}
+**Objectifs**
+
+VOIR CAHIER DES CHARGES
+
+**Références** : Borresen & Lambert (2009) ; van Erp, Sanders & de Koning (2019).
+:::
+
+# Mise en place
+
+## Packages
+
+```{r}
+#| label: installation
+#| eval: false
+# À exécuter une seule fois
+install.packages(c("tidyverse", "data.table","ggplot2"))
+```
+
+```{r}
+#| label: packages
+library(tidyverse)   # inclut purrr, ggplot2, lubridate...
+library(data.table)
+library(ggplot2)# fread() et frollmean()
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+## Les données
+
+Chaque fichier `.csv` correspond à **une séance** d'un cycliste. Le dossier `Data_Cyclist` doit se trouver à côté de ce fichier `.qmd`. Le chemin de chaque fichier contient :
+
+- l'identifiant du cycliste (`cyclist1`, `cyclist2`…) ;
+- son poids (`70kg`…) ;
+- l'année, sous forme d'un dossier (`/2022/`)  quand le cycliste à des données sur les deux années (pas le cas du cycliste 1,6,7) ;
+- le nom du fichier, qui donne la date et l'heure de départ (`2022_12_31_08_18_20`).
+
+Les variables utilisées dans ce document sont :
+
+| Variable | Description | Unité |
+|---|---|---|
+| `secs` | Temps écoulé | s |
+| `watts` | Puissance | W |
+| `hr` | Fréquence cardiaque | bpm |
+
+Les fichiers `fc_repos` sont exclus du chargement. POUR L'INSTANT
+
+```{r}
+#| label: chargement-fonction
+charger_donnees_cyclistes <- function(dossier = "Data_Cyclist") {
+  fichiers <- list.files(dossier, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+  fichiers <- fichiers[!str_detect(basename(fichiers), "^fc_repos")]
+
+  message(length(fichiers), " fichiers à charger...")
+
+  lire <- function(f) {
+    df <- tryCatch(data.table::fread(f), error = function(e) NULL)
+    if (is.null(df) || ncol(df) < 2) {
+      warning("Fichier ignoré : ", f)
+      return(NULL)
+    }
+    as_tibble(df) |> mutate(chemin = f)
+  }
+
+  map(fichiers, lire, .progress = TRUE) |>
+    bind_rows() |>
+    mutate(
+      cycliste = str_extract(chemin, "cyclist\\d+"),
+      poids_kg = as.numeric(str_extract(chemin, "\\d+(?=kg)")),
+      annee    = as.integer(str_extract(chemin, "(?<=/)\\d{4}(?=/)")),
+      seance   = tools::file_path_sans_ext(basename(chemin))
+    ) |>
+    select(-chemin) |>
+    split(~ cycliste)
+}
+```
+
+```{r}
+#| label: chargement
+#| cache: true
+donnees <- charger_donnees_cyclistes()
+```
+
+Le résultat `donnees` est une **liste** contenant un tableau par cycliste. Toutes les séances d'un cycliste sont dans le même tableau : les calculs suivants regroupent donc toujours les lignes par séance.
+
+## Fréquence cardiaque minimale et maximale
+
+```{r}
+#| label: fc-max
+max_hr_par_cycliste <- map_dfr(donnees, ~ summarise(.x, max_hr = max(hr, na.rm = TRUE)), .id = "cycliste")
+max_hr_par_cycliste
+```
+
+```{r}
+#| label: fc-min
+# Valeurs à 0 exclues (perte de signal de la ceinture)
+min_hr_par_cycliste <- map_dfr(donnees, ~ summarise(.x, min_hr = min(hr[hr > 0], na.rm = TRUE)), .id = "cycliste")
+min_hr_par_cycliste
+```
+
+# Calcul du TSS
+
+## Principe
+
+Le **TSS** (*Training Stress Score*, Coggan) résume la charge d'une séance en un seul chiffre. Il combine la **durée** et l'**intensité** de la séance, et il est calibré pour qu'**une heure au seuil (FTP) vaille 100 TSS**.
+
+| Notion | Définition |
+|---|---|
+| **FTP** | Puissance maximale tenable environ 1 h |
+| **NP** (puissance normalisée) | Moyenne glissante sur 30 s de la puissance, élevée à la puissance 4, moyennée, puis racine 4ᵉ. Elle pèse davantage les efforts intenses que la moyenne simple. |
+| **IF** (facteur d'intensité) | $IF = NP / FTP$ |
+| **TSS** | $TSS = \dfrac{t \times NP \times IF}{FTP \times 3600} \times 100 = t_{h} \times IF^2 \times 100$ |
+
+::: {.callout-important title="Estimation de la FTP"}
+La FTP n'est pas fournie dans le jeu de données. Comme van Erp *et al.* (2019), on l'estime à **95 % de la meilleure puissance moyenne sur 20 minutes**, cherchée sur toutes les séances d'un cycliste pour une saison donnée.
+
+Si un cycliste n'a réalisé aucun effort maximal de 20 min dans la saison, sa FTP sera **sous-estimée** et ses TSS **surestimés**.
+:::
+
+## Préparation d'une séance
+
+Les lignes sont triées par temps et le pas d'enregistrement est détecté automatiquement (en général 1 s). Les puissances manquantes ou négatives sont remplacées par 0.
+
+```{r}
+#| label: preparer-seance
+preparer_seance <- function(df) {
+  df <- df |> arrange(secs)
+  # Pas d'échantillonnage (en général 1 s)
+  dt <- median(diff(df$secs), na.rm = TRUE)
+  if (!is.finite(dt) || dt <= 0) dt <- 1
+  df |>
+    mutate(
+      dt = dt,
+      # Watts manquants ou négatifs -> 0 (roue libre / perte de signal)
+      watts = if_else(is.na(watts) | watts < 0, 0, watts)
+    )
+}
+```
+
+## Meilleure puissance sur 20 minutes et puissance normalisée
+
+```{r}
+#| label: fonctions-puissance
+# Meilleure puissance moyenne sur une durée donnée (ex. 20 min)
+meilleure_puissance <- function(watts, dt, duree_s = 1200) {
+  n <- round(duree_s / dt)
+  if (length(watts) < n) return(NA_real_)   # séance trop courte
+  max(frollmean(watts, n), na.rm = TRUE)
+}
+
+# Puissance normalisée (NP)
+puissance_normalisee <- function(watts, dt) {
+  n <- round(30 / dt)                        # fenêtre de 30 s
+  if (length(watts) < n) return(NA_real_)
+  m30 <- frollmean(watts, n)
+  mean(m30^4, na.rm = TRUE)^(1/4)
+}
+```
+
+## Indicateurs par séance
+
+```{r}
+#| label: resumer-seances
+resumer_seances <- function(df_cycliste) {
+  df_cycliste |>
+    group_by(cycliste, annee, seance, poids_kg) |>
+    group_modify(~ {
+      s  <- preparer_seance(.x)
+      dt <- s$dt[1]
+      tibble(
+        duree_s     = nrow(s) * dt,
+        p_moy       = mean(s$watts),
+        np          = puissance_normalisee(s$watts, dt),
+        mmp20       = meilleure_puissance(s$watts, dt, 1200),
+        travail_kj  = sum(s$watts * dt) / 1000,
+        hr_moy      = mean(s$hr[s$hr > 0], na.rm = TRUE)
+      )
+    }) |>
+    ungroup()
+}
+```
+
+```{r}
+#| label: seances
+#| cache: true
+#| dependson: chargement
+seances <- map(donnees, resumer_seances, .progress = TRUE) |> bind_rows()
+```
+
+## FTP estimée par cycliste et par saison
+
+```{r}
+#| label: tbl-ftp
+#| tbl-cap: "FTP estimée (95 % de la meilleure puissance sur 20 min de la saison)"
+ftp <- seances |>
+  group_by(cycliste, annee) |>
+  summarise(
+    mmp20_saison = max(mmp20, na.rm = TRUE),
+    ftp          = 0.95 * mmp20_saison,
+    .groups = "drop"
+  ) |>
+  mutate(ftp = if_else(is.finite(ftp), ftp, NA_real_))
+
+ftp
+```
+
+## TSS par séance
+
+```{r}
+#| label: tss
+tss <- seances |>
+  left_join(ftp, by = c("cycliste", "annee")) |>
+  mutate(
+    duree_h  = duree_s / 3600,
+    IF       = np / ftp,
+    TSS      = (duree_s * np * IF) / (ftp * 3600) * 100,
+    ftp_wkg  = ftp / poids_kg
+  ) |>
+  select(cycliste, annee, seance, duree_h, p_moy, np, ftp, ftp_wkg,
+         IF, TSS, travail_kj, hr_moy)
+
+head(tss, 10)
+```
+
+## Résumé par cycliste et par saison
+
+```{r}
+#| label: tbl-tss-cycliste
+#| tbl-cap: "Charge d'entraînement par cycliste et par saison"
+tss_par_cycliste <- tss |>
+  group_by(cycliste, annee) |>
+  summarise(
+    n_seances   = n(),
+    TSS_moyen   = mean(TSS, na.rm = TRUE),
+    TSS_total   = sum(TSS, na.rm = TRUE),
+    IF_moyen    = mean(IF, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+tss_par_cycliste
+```
+
+## Contrôle qualité
+
+Un IF supérieur à 1,05 sur une séance de plus d'une heure est quasiment impossible : cela signale le plus souvent une **FTP sous-estimée**.
+
+```{r}
+#| label: controle
+tss |> filter(IF > 1.05, duree_h > 1)
+```
+
+# Visualisations
+
+## Date des séances
+
+La date et l'heure de départ sont extraites du nom de fichier (format `AAAA_MM_JJ_HH_MM_SS`).
+
+```{r}
+#| label: dates
+tss <- tss |>
+  mutate(
+    debut = as.POSIXct(str_extract(seance, "\\d{4}_\\d{2}_\\d{2}_\\d{2}_\\d{2}_\\d{2}"),
+                       format = "%Y_%m_%d_%H_%M_%S", tz = "UTC"),
+    date  = as.Date(debut)
+  )
+```
+
+## Distribution du TSS par cycliste
+
+```{r}
+#| label: fig-tss-distribution
+#| fig-cap: "Distribution du TSS par séance pour chaque cycliste"
+g1 <- tss |>
+  ggplot(aes(x = reorder(cycliste, TSS, median, na.rm = TRUE), y = TSS)) +
+  geom_boxplot(outlier.alpha = 0.3, fill = "grey90") +
+  stat_summary(fun = mean, geom = "point", colour = "firebrick", size = 2) +
+  coord_flip() +
+  labs(x = NULL, y = "TSS par séance",
+       title = "Distribution du TSS par cycliste",
+       subtitle = "Point rouge = moyenne")
+g1
+```
+
+## Volume et intensité
+
+Chaque point est une séance. La couleur indique l'IF : on voit si la charge d'une séance vient plutôt de sa durée ou de son intensité.
+
+```{r}
+#| label: fig-duree-intensite
+#| fig-cap: "TSS en fonction de la durée, coloré par le facteur d'intensité"
+g2 <- tss |>
+  ggplot(aes(duree_h, TSS, colour = IF)) +
+  geom_point(alpha = 0.6) +
+  scale_colour_viridis_c(option = "plasma", limits = c(0.4, 1.1), oob = scales::squish) +
+  labs(x = "Durée (h)", y = "TSS", colour = "IF",
+       title = "Charge d'une séance : durée × intensité")
+g2
+```
+
+## Charge hebdomadaire
+
+```{r}
+#| label: fig-tss-semaine
+#| fig-cap: "TSS hebdomadaire au fil des saisons"
+#| fig-height: 6
+tss_semaine <- tss |>
+  filter(!is.na(date)) |>
+  mutate(semaine = floor_date(date, "week", week_start = 1)) |>
+  group_by(cycliste, semaine) |>
+  summarise(TSS = sum(TSS, na.rm = TRUE), heures = sum(duree_h), .groups = "drop")
+
+g3 <- tss_semaine |>
+  ggplot(aes(semaine, TSS)) +
+  geom_col(fill = "steelblue") +
+  facet_wrap(~ cycliste) +
+  labs(x = NULL, y = "TSS hebdomadaire", title = "Charge hebdomadaire")
+g3
+```
+
+## Performance Management Chart (non exécuté)
+
+Ce graphique applique le modèle forme–fatigue de Banister (voir Borresen & Lambert, 2009) au TSS quotidien :
+
+- **CTL** (« forme ») : moyenne exponentielle du TSS sur 42 jours ;
+- **ATL** (« fatigue ») : moyenne exponentielle du TSS sur 7 jours ;
+- **TSB** (« fraîcheur ») : CTL − ATL de la veille.
+
+Le bloc est conservé mais **n'est pas exécuté** lors du rendu. Pour l'activer, remplacez `eval: false` par `eval: true`.
+
+```{r}
+#| label: fig-pmc
+#| eval: false
+pmc <- function(df) {
+  jours <- tibble(date = seq(min(df$date), max(df$date), by = "day")) |>
+    left_join(df |> group_by(date) |> summarise(TSS = sum(TSS, na.rm = TRUE)),
+              by = "date") |>
+    mutate(TSS = replace_na(TSS, 0))
+  k_ctl <- 1 - exp(-1 / 42); k_atl <- 1 - exp(-1 / 7)
+  ctl <- atl <- numeric(nrow(jours)); c0 <- a0 <- 0
+  for (i in seq_len(nrow(jours))) {
+    c0 <- c0 + k_ctl * (jours$TSS[i] - c0); ctl[i] <- c0
+    a0 <- a0 + k_atl * (jours$TSS[i] - a0); atl[i] <- a0
+  }
+  jours |> mutate(CTL = ctl, ATL = atl, TSB = lag(CTL - ATL, default = 0))
+}
+
+pmc_df <- tss |>
+  filter(!is.na(date), !is.na(TSS)) |>
+  group_by(cycliste) |>
+  group_modify(~ pmc(.x)) |>
+  ungroup()
+
+un_cycliste <- unique(pmc_df$cycliste)[1]   # changez ici
+
+g4 <- pmc_df |>
+  filter(cycliste == un_cycliste) |>
+  ggplot(aes(date)) +
+  geom_col(aes(y = TSS), fill = "grey80", width = 1) +
+  geom_line(aes(y = CTL, colour = "CTL (forme)"), linewidth = 1) +
+  geom_line(aes(y = ATL, colour = "ATL (fatigue)"), linewidth = 0.7) +
+  geom_line(aes(y = TSB, colour = "TSB (fraîcheur)"), linewidth = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_colour_manual(values = c("CTL (forme)" = "steelblue",
+                                 "ATL (fatigue)" = "firebrick",
+                                 "TSB (fraîcheur)" = "darkgoldenrod")) +
+  labs(x = NULL, y = "TSS / jour", colour = NULL,
+       title = paste("Performance Management Chart –", un_cycliste)) +
+  theme(legend.position = "bottom")
+g4
+```
+
+## Répartition par zones de puissance
+
+Les zones utilisées sont celles de **Coggan**, définies en % de la FTP. Les zones 6 (anaérobie) et 7 (neuromusculaire) de Coggan sont regroupées, car les sprints ne durent que quelques secondes et pèsent très peu dans le temps total.
+
+| Zone | % de la FTP | Type d'effort |
+|---|---|---|
+| Z1 Récupération | < 55 % | Très facile, récupération active |
+| Z2 Endurance | 55-75 % | Allure de fond, sorties longues |
+| Z3 Tempo | 75-90 % | Soutenu mais tenable longtemps |
+| Z4 Seuil | 90-105 % | Autour de la FTP, efforts de 10 à 60 min |
+| Z5 VO2max | 105-120 % | Efforts durs de 3 à 8 min |
+| Z6 Anaérobie | > 120 % | Efforts courts et très intenses |
+
+::: {.callout-note}
+Van Erp *et al.* (2019) utilisent les mêmes zones de Coggan, mais en **5 zones** : tout ce qui dépasse 106 % de la FTP est regroupé en Z5. Il faut en tenir compte pour comparer nos résultats aux leurs.
+
+Les secondes à 0 W (roue libre, arrêts) sont comptées en Z1.
+:::
+
+```{r}
+#| label: zones
+bornes <- c(-Inf, 0.55, 0.75, 0.90, 1.05, 1.20, Inf)
+noms   <- c("Z1 Récup", "Z2 Endurance", "Z3 Tempo", "Z4 Seuil", "Z5 VO2max", "Z6 Anaérobie")
+
+zones <- map(donnees, \(df) {
+  df |>
+    inner_join(ftp |> select(cycliste, annee, ftp), by = c("cycliste", "annee")) |>
+    filter(!is.na(watts), !is.na(ftp)) |>
+    mutate(zone = cut(watts / ftp, bornes, labels = noms, right = FALSE)) |>
+    count(cycliste, annee, zone)
+}, .progress = TRUE) |>
+  bind_rows() |>
+  group_by(cycliste, annee) |>
+  mutate(pct = n / sum(n) * 100) |>
+  ungroup()
+```
+
+```{r}
+#| label: fig-zones
+#| fig-cap: "Part du temps d'entraînement passé dans chaque zone de puissance"
+#| fig-height: 5
+g5 <- zones |>
+  ggplot(aes(cycliste, pct, fill = zone)) +
+  geom_col() +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  coord_flip() +
+  facet_wrap(~ annee) +
+  labs(x = NULL, y = "% du temps d'entraînement", fill = NULL,
+       title = "Distribution de l'intensité par zones de puissance")
+g5
+```
+
+## Évolution de la FTP
+
+```{r}
+#| label: fig-ftp
+#| fig-cap: "FTP estimée en W/kg, par cycliste et par saison"
+g6 <- ftp |>
+  left_join(tss |> distinct(cycliste, annee, ftp_wkg), by = c("cycliste", "annee")) |>
+  ggplot(aes(annee, ftp_wkg, group = cycliste, colour = cycliste)) +
+  geom_line() + geom_point() +
+  labs(x = "Saison", y = "FTP estimée (W/kg)", colour = NULL,
+       title = "Évolution de la FTP")
+g6
+```
+
+# Limites
+
+- La **FTP est estimée** à partir des données d'entraînement et non mesurée lors d'un test. Une saison sans effort maximal de 20 min conduit à une FTP trop basse et à des TSS trop élevés.
+- La **durée** correspond au temps enregistré : les arrêts longs à 0 W sont inclus et font baisser la NP.
+- Le **TSS** est une mesure de charge **externe**, individualisée par la FTP. Il ne dit rien de la perception de l'effort ni de la fatigue (Borresen & Lambert, 2009). Il gagnerait à être croisé avec une mesure de charge interne (RPE de séance, TRIMP).
+
+# Références
+
+- Borresen, J., & Lambert, M. I. (2009). The quantification of training load, the training response and the effect on performance. *Sports Medicine*, 39(9), 779–795.
+- van Erp, T., Sanders, D., & de Koning, J. J. (2019). Training characteristics of male and female professional road cyclists: a 4-year retrospective analysis. *International Journal of Sports Physiology and Performance*.
+- Allen, H., & Coggan, A. (2010). *Training and Racing with a Power Meter* (2ᵉ éd.). VeloPress.
+
+# Annexe : environnement {.unnumbered}
+
+```{r}
+#| label: session
+sessionInfo()
+```
