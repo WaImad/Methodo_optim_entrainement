@@ -27,23 +27,30 @@ warnings.filterwarnings('ignore')
 # 1. CHARGEMENT DES DONNÉES
 # ==============================
 
-def charger_donnees_cyclistes(dossier="data_cycliste"):
+def charger_donnees_cyclistes(dossier="data_cycliste/Sorties_velo"):
     """
     Charge tous les fichiers CSV d'entraînement des cyclistes
 
     Paramètres:
         dossier : chemin vers le dossier contenant les données
+                  Par défaut: data_cycliste/Sorties_velo (structure branche main)
 
     Retourne:
         dict : dictionnaire avec un DataFrame par cycliste
     """
-    print(f"🔄 Chargement des données depuis {dossier}...")
+    print(f" Chargement des données depuis {dossier}...")
 
     # Trouver tous les fichiers CSV, en excluant les fichiers fc_repos
     dossier_path = Path(dossier)
+
+    # Vérifier si le dossier existe, sinon essayer l'ancienne structure
+    if not dossier_path.exists():
+        print(f"    Dossier {dossier} introuvable, essai avec data_cycliste/...")
+        dossier_path = Path("data_cycliste")
+
     fichiers = [f for f in dossier_path.rglob("*.csv") if "fc_repos" not in f.name]
 
-    print(f"   📁 {len(fichiers)} fichiers à charger")
+    print(f"   {len(fichiers)} fichiers à charger")
 
     donnees_brutes = []
 
@@ -83,7 +90,7 @@ def charger_donnees_cyclistes(dossier="data_cycliste"):
             donnees_brutes.append(df)
 
         except Exception as e:
-            print(f"   ⚠️  Erreur lors du chargement de {fichier.name}: {e}")
+            print(f"    Erreur lors du chargement de {fichier.name}: {e}")
             continue
 
     # Combiner toutes les données en un seul DataFrame
@@ -95,7 +102,7 @@ def charger_donnees_cyclistes(dossier="data_cycliste"):
         for cycliste, groupe in df_complet.groupby('cycliste')
     }
 
-    print(f"   ✅ {len(donnees)} cyclistes chargés")
+    print(f"   {len(donnees)} cyclistes chargés")
     return donnees
 
 
@@ -260,7 +267,7 @@ def calculer_ftp(df_seances):
     Retourne:
         DataFrame avec la FTP par cycliste et par saison
     """
-    print("📊 Calcul de la FTP (seuil fonctionnel)...")
+    print(" Calcul de la FTP (seuil fonctionnel)...")
 
     ftp = df_seances.groupby(['cycliste', 'annee']).agg(
         mmp20_saison=('mmp20', 'max')
@@ -269,7 +276,7 @@ def calculer_ftp(df_seances):
     # FTP = 95% de la meilleure puissance sur 20 minutes
     ftp['ftp'] = ftp['mmp20_saison'] * 0.95
 
-    print("   ✅ FTP calculée pour chaque cycliste/saison")
+    print("   FTP calculée pour chaque cycliste/saison")
     return ftp
 
 
@@ -290,7 +297,7 @@ def calculer_tss(df_seances, df_ftp):
     Retourne:
         DataFrame avec le TSS pour chaque séance
     """
-    print("🎯 Calcul du TSS (Training Stress Score)...")
+    print(" Calcul du TSS (Training Stress Score)...")
 
     # Joindre les FTP aux séances
     df = df_seances.merge(df_ftp[['cycliste', 'annee', 'ftp']],
@@ -306,7 +313,7 @@ def calculer_tss(df_seances, df_ftp):
     # Calculer la FTP en W/kg (pour comparer les cyclistes entre eux)
     df['ftp_wkg'] = df['ftp'] / df['poids_kg']
 
-    print("   ✅ TSS calculé pour toutes les séances")
+    print("   TSS calculé pour toutes les séances")
     return df
 
 
@@ -329,7 +336,7 @@ def calculer_zones_puissance(donnees, df_ftp):
     Retourne:
         DataFrame avec le pourcentage de temps par zone
     """
-    print("🎨 Calcul des zones de puissance...")
+    print(" Calcul des zones de puissance...")
 
     bornes = [-np.inf, 0.55, 0.75, 0.90, 1.05, 1.20, np.inf]
     noms = ['Z1 Récup', 'Z2 Endurance', 'Z3 Tempo', 'Z4 Seuil', 'Z5 VO2max', 'Z6 Anaérobie']
@@ -368,7 +375,7 @@ def calculer_zones_puissance(donnees, df_ftp):
 
     zones_df = pd.concat(resultats_zones, ignore_index=True)
 
-    print("   ✅ Zones de puissance calculées")
+    print("   Zones de puissance calculées")
     return zones_df
 
 
@@ -471,9 +478,9 @@ def controle_qualite(df_tss):
     problematiques = df_tss[(df_tss['IF'] > 1.05) & (df_tss['duree_h'] > 1)]
 
     if len(problematiques) > 0:
-        print(f"   ⚠️  {len(problematiques)} séances avec IF > 1.05 et durée > 1h (FTP potentiellement sous-estimée)")
+        print(f"    {len(problematiques)} séances avec IF > 1.05 et durée > 1h (FTP potentiellement sous-estimée)")
     else:
-        print("   ✅ Aucune anomalie détectée")
+        print("   Aucune anomalie détectée")
 
     return problematiques
 
@@ -494,7 +501,7 @@ def exporter_json(df_tss, df_ftp, df_zones, df_stats, charge_hebdo, fichier_sort
         charge_hebdo : charge hebdomadaire
         fichier_sortie : nom du fichier JSON
     """
-    print(f"💾 Export des données vers {fichier_sortie}...")
+    print(f" Export des données vers {fichier_sortie}...")
 
     # Préparer les dates pour la sérialisation JSON
     df_tss_export = df_tss.copy()
@@ -539,7 +546,7 @@ def main():
     print("="*60 + "\n")
 
     # Étape 1 : Charger les données
-    donnees = charger_donnees_cyclistes(dossier="data_cycliste")
+    donnees = charger_donnees_cyclistes()
 
     # Étape 2 : Résumer chaque séance
     print("\n📋 Résumé des séances...")
