@@ -27,13 +27,13 @@ warnings.filterwarnings('ignore')
 # 1. CHARGEMENT DES DONNÉES
 # ==============================
 
-def charger_donnees_cyclistes(dossier="data_cycliste/Sorties_velo"):
+def charger_donnees_cyclistes(dossier="../data_cycliste/Sorties_velo"):
     """
     Charge tous les fichiers CSV d'entraînement des cyclistes
 
     Paramètres:
         dossier : chemin vers le dossier contenant les données
-                  Par défaut: data_cycliste/Sorties_velo (structure branche main)
+                  Par défaut: ../data_cycliste/Sorties_velo (structure branche main)
 
     Retourne:
         dict : dictionnaire avec un DataFrame par cycliste
@@ -45,8 +45,8 @@ def charger_donnees_cyclistes(dossier="data_cycliste/Sorties_velo"):
 
     # Vérifier si le dossier existe, sinon essayer l'ancienne structure
     if not dossier_path.exists():
-        print(f"    Dossier {dossier} introuvable, essai avec data_cycliste/...")
-        dossier_path = Path("data_cycliste")
+        print(f"    Dossier {dossier} introuvable, essai avec ../data_cycliste/...")
+        dossier_path = Path("../data_cycliste")
 
     fichiers = [f for f in dossier_path.rglob("*.csv") if "fc_repos" not in f.name]
 
