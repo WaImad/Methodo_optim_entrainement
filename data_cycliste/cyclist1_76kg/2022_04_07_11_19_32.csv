@@ -1,0 +1,3 @@
+secs,cad,hr,km,kph,nm,watts,alt,lon,lat,headwind,slope,temp,interval,lrbalance,lte,rte,lps,rps,smo2,thb,o2hb,hhb
+0,0,71,0,0,0,0,39.2,0.00000000,0.00000000,0,0,-255,0,-255,0,0,0,0,0,0,0,0
+1,0,71,0,0,0,0,39.2,-0.32089831,47.83227545,0,0,30,0,-255,0,0,0,0,0,0,0,0
