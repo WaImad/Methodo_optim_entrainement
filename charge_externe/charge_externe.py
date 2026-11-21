@@ -5,7 +5,7 @@ Script de calcul de la charge d'entraînement externe pour cyclistes
 Ce script traite les données d'entraînement de cyclistes (fichiers CSV avec puissance et fréquence cardiaque)
 et calcule les indicateurs de charge externe, notamment le TSS (Training Stress Score).
 
-Sortie : Un fichier JSON contenant toutes les métriques pour une application de visualisation
+Sortie : Un fichier JSON structuré par cycliste avec toutes les métriques pour une application de visualisation
 
 Auteur : Équipe FARSI, ORLANDI, GEINDRE, COVA CORREA
 Date : 2026-11-20
@@ -27,26 +27,26 @@ warnings.filterwarnings('ignore')
 # 1. CHARGEMENT DES DONNÉES
 # ==============================
 
-def charger_donnees_cyclistes(dossier="../data_cycliste/Sorties_velo"):
+def charger_donnees_cyclistes(dossier="data_cycliste/Sorties_velo"):
     """
     Charge tous les fichiers CSV d'entraînement des cyclistes
 
     Paramètres:
         dossier : chemin vers le dossier contenant les données
-                  Par défaut: ../data_cycliste/Sorties_velo (structure branche main)
+                  Par défaut: data_cycliste/Sorties_velo (structure branche main)
 
     Retourne:
         dict : dictionnaire avec un DataFrame par cycliste
     """
-    print(f" Chargement des données depuis {dossier}...")
+    print(f"Chargement des données depuis {dossier}...")
 
     # Trouver tous les fichiers CSV, en excluant les fichiers fc_repos
     dossier_path = Path(dossier)
 
     # Vérifier si le dossier existe, sinon essayer l'ancienne structure
     if not dossier_path.exists():
-        print(f"    Dossier {dossier} introuvable, essai avec ../data_cycliste/...")
-        dossier_path = Path("../data_cycliste")
+        print(f"   Dossier {dossier} introuvable, essai avec data_cycliste/...")
+        dossier_path = Path("data_cycliste")
 
     fichiers = [f for f in dossier_path.rglob("*.csv") if "fc_repos" not in f.name]
 
@@ -90,7 +90,7 @@ def charger_donnees_cyclistes(dossier="../data_cycliste/Sorties_velo"):
             donnees_brutes.append(df)
 
         except Exception as e:
-            print(f"    Erreur lors du chargement de {fichier.name}: {e}")
+            print(f"   Erreur lors du chargement de {fichier.name}: {e}")
             continue
 
     # Combiner toutes les données en un seul DataFrame
@@ -267,7 +267,7 @@ def calculer_ftp(df_seances):
     Retourne:
         DataFrame avec la FTP par cycliste et par saison
     """
-    print(" Calcul de la FTP (seuil fonctionnel)...")
+    print("Calcul de la FTP (seuil fonctionnel)...")
 
     ftp = df_seances.groupby(['cycliste', 'annee']).agg(
         mmp20_saison=('mmp20', 'max')
@@ -297,7 +297,7 @@ def calculer_tss(df_seances, df_ftp):
     Retourne:
         DataFrame avec le TSS pour chaque séance
     """
-    print(" Calcul du TSS (Training Stress Score)...")
+    print("Calcul du TSS (Training Stress Score)...")
 
     # Joindre les FTP aux séances
     df = df_seances.merge(df_ftp[['cycliste', 'annee', 'ftp']],
@@ -336,7 +336,7 @@ def calculer_zones_puissance(donnees, df_ftp):
     Retourne:
         DataFrame avec le pourcentage de temps par zone
     """
-    print(" Calcul des zones de puissance...")
+    print("Calcul des zones de puissance...")
 
     bornes = [-np.inf, 0.55, 0.75, 0.90, 1.05, 1.20, np.inf]
     noms = ['Z1 Récup', 'Z2 Endurance', 'Z3 Tempo', 'Z4 Seuil', 'Z5 VO2max', 'Z6 Anaérobie']
@@ -478,7 +478,7 @@ def controle_qualite(df_tss):
     problematiques = df_tss[(df_tss['IF'] > 1.05) & (df_tss['duree_h'] > 1)]
 
     if len(problematiques) > 0:
-        print(f"    {len(problematiques)} séances avec IF > 1.05 et durée > 1h (FTP potentiellement sous-estimée)")
+        print(f"   {len(problematiques)} séances avec IF > 1.05 et durée > 1h (FTP potentiellement sous-estimée)")
     else:
         print("   Aucune anomalie détectée")
 
@@ -486,12 +486,25 @@ def controle_qualite(df_tss):
 
 
 # ==============================
-# 6. EXPORT JSON
+# 6. EXPORT JSON (PAR CYCLISTE)
 # ==============================
 
-def exporter_json(df_tss, df_ftp, df_zones, df_stats, charge_hebdo, fichier_sortie="charge_externe.json"):
+def exporter_json_par_cycliste(df_tss, df_ftp, df_zones, df_stats, charge_hebdo, fichier_sortie="charge_externe.json"):
     """
-    Exporte toutes les données au format JSON pour l'application de visualisation
+    Exporte toutes les données au format JSON structuré par cycliste
+
+    Structure :
+    {
+      "cyclist1": {
+        "info": {...},
+        "seances": [...],
+        "ftp": {...},
+        "zones_puissance": [...],
+        "stats": {...},
+        "charge_hebdomadaire": [...]
+      },
+      "cyclist2": {...}
+    }
 
     Paramètres:
         df_tss : séances avec TSS
@@ -501,7 +514,7 @@ def exporter_json(df_tss, df_ftp, df_zones, df_stats, charge_hebdo, fichier_sort
         charge_hebdo : charge hebdomadaire
         fichier_sortie : nom du fichier JSON
     """
-    print(f" Export des données vers {fichier_sortie}...")
+    print(f"Export des données vers {fichier_sortie}...")
 
     # Préparer les dates pour la sérialisation JSON
     df_tss_export = df_tss.copy()
@@ -511,26 +524,68 @@ def exporter_json(df_tss, df_ftp, df_zones, df_stats, charge_hebdo, fichier_sort
     charge_hebdo_export = charge_hebdo.copy()
     charge_hebdo_export['semaine'] = charge_hebdo_export['semaine'].astype(str)
 
-    # Créer la structure JSON
+    # Créer la structure par cycliste
     donnees_json = {
         'metadata': {
             'titre': 'Charge d\'entraînement externe - Cyclistes',
             'date_export': datetime.now().isoformat(),
-            'description': 'Données de charge externe (TSS, FTP, zones) pour application de visualisation'
+            'description': 'Données de charge externe (TSS, FTP, zones) organisées par cycliste'
         },
-        'seances': df_tss_export.to_dict(orient='records'),
-        'ftp': df_ftp.to_dict(orient='records'),
-        'zones_puissance': df_zones.to_dict(orient='records'),
-        'stats_cyclistes': df_stats.to_dict(orient='records'),
-        'charge_hebdomadaire': charge_hebdo_export.to_dict(orient='records')
+        'cyclistes': {}
     }
+
+    # Obtenir la liste unique des cyclistes
+    cyclistes = df_tss_export['cycliste'].unique()
+
+    for cycliste in cyclistes:
+        # Filtrer les données pour ce cycliste
+        seances_cycliste = df_tss_export[df_tss_export['cycliste'] == cycliste]
+        ftp_cycliste = df_ftp[df_ftp['cycliste'] == cycliste]
+        zones_cycliste = df_zones[df_zones['cycliste'] == cycliste]
+        stats_cycliste = df_stats[df_stats['cycliste'] == cycliste]
+        charge_cycliste = charge_hebdo_export[charge_hebdo_export['cycliste'] == cycliste]
+
+        # Informations générales du cycliste
+        poids = seances_cycliste['poids_kg'].iloc[0] if len(seances_cycliste) > 0 else None
+        annees = sorted(seances_cycliste['annee'].dropna().unique().tolist())
+
+        # Structurer les données du cycliste
+        donnees_json['cyclistes'][cycliste] = {
+            'info': {
+                'poids_kg': poids,
+                'annees': annees,
+                'nb_seances_total': len(seances_cycliste)
+            },
+            'seances': seances_cycliste.to_dict(orient='records'),
+            'ftp': ftp_cycliste.to_dict(orient='records'),
+            'zones_puissance': zones_cycliste.to_dict(orient='records'),
+            'stats': stats_cycliste.to_dict(orient='records'),
+            'charge_hebdomadaire': charge_cycliste.to_dict(orient='records')
+        }
+
+    # Fonction pour convertir les types numpy/pandas en types Python natifs
+    def convertir_types(obj):
+        if isinstance(obj, (np.integer, np.int64)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float64)):
+            return float(obj) if not np.isnan(obj) else None
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {k: convertir_types(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convertir_types(item) for item in obj]
+        return obj
+
+    # Convertir tous les types
+    donnees_json = convertir_types(donnees_json)
 
     # Écrire le fichier JSON
     with open(fichier_sortie, 'w', encoding='utf-8') as f:
         json.dump(donnees_json, f, ensure_ascii=False, indent=2)
 
-    print(f"   ✅ Export terminé : {fichier_sortie}")
-    print(f"   📊 {len(df_tss_export)} séances exportées")
+    print(f"   Export terminé : {fichier_sortie}")
+    print(f"   {len(cyclistes)} cyclistes exportés")
 
 
 # ==============================
@@ -549,9 +604,9 @@ def main():
     donnees = charger_donnees_cyclistes()
 
     # Étape 2 : Résumer chaque séance
-    print("\n📋 Résumé des séances...")
+    print("\nRésumé des séances...")
     seances = pd.concat([resumer_seances(df) for df in donnees.values()], ignore_index=True)
-    print(f"   ✅ {len(seances)} séances traitées")
+    print(f"   {len(seances)} séances traitées")
 
     # Étape 3 : Calculer la FTP
     print()
@@ -567,25 +622,25 @@ def main():
     zones = calculer_zones_puissance(donnees, ftp)
 
     # Étape 6 : Statistiques par cycliste
-    print("\n📈 Calcul des statistiques par cycliste...")
+    print("\nCalcul des statistiques par cycliste...")
     stats = calculer_stats_par_cycliste(tss)
     print(stats.to_string(index=False))
 
     # Étape 7 : Charge hebdomadaire
-    print("\n📅 Calcul de la charge hebdomadaire...")
+    print("\nCalcul de la charge hebdomadaire...")
     charge_hebdo = calculer_charge_hebdomadaire(tss)
-    print(f"   ✅ {len(charge_hebdo)} semaines analysées")
+    print(f"   {len(charge_hebdo)} semaines analysées")
 
     # Étape 8 : Contrôle qualité
-    print("\n🔍 Contrôle qualité...")
+    print("\nContrôle qualité...")
     controle_qualite(tss)
 
-    # Étape 9 : Export JSON
+    # Étape 9 : Export JSON (PAR CYCLISTE)
     print()
-    exporter_json(tss, ftp, zones, stats, charge_hebdo)
+    exporter_json_par_cycliste(tss, ftp, zones, stats, charge_hebdo)
 
     print("\n" + "="*60)
-    print("    ✅ TRAITEMENT TERMINÉ AVEC SUCCÈS")
+    print("    TRAITEMENT TERMINÉ AVEC SUCCÈS")
     print("="*60 + "\n")
 
 
