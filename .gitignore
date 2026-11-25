@@ -6,3 +6,6 @@ Data_Cyclist*/
 
 __pycache__/
 .venv/
+
+# sortie du notebook exécuté par lancer_tout.py
+profil/.execution/

@@ -23,7 +23,14 @@ function current() {
 function render() {
   const c = current();
   document.querySelector('.who').textContent =
-    `${c.weight_kg} kg, ${c.years.join(' et ')}, ${c.n_rides} sorties`;
+    `${c.weight_kg} kg, ${c.years.join(' et ')}, ${c.n_rides} sorties vélo, ${c.n_other} autres séances`;
+  document.querySelector('.print-name').textContent = `${c.label} (${c.weight_kg} kg)`;
+  document.querySelector('.print-date').textContent = 'Édité le ' + new Date().toLocaleDateString('fr-FR');
+
+  drawProfil(c);
+  drawExterne(c);
+  drawInterne(c);
+  drawEvolution(c);
 }
 
 // navigation : une page par section
@@ -34,6 +41,25 @@ function show() {
   pages.forEach(p => p.hidden = p.id !== id);
   links.forEach(a => a.classList.toggle('active', a.hash === '#' + id));
 }
+
+// export PDF : on affiche toutes les pages, on redimensionne les graphes, puis l'impression du navigateur
+// ("Enregistrer au format PDF" dans la fenêtre d'impression)
+function preparerImpression() {
+  document.body.classList.add('printing');
+  Object.values(charts).forEach(ch => ch.resize());
+}
+
+function finirImpression() {
+  document.body.classList.remove('printing');
+  Object.values(charts).forEach(ch => ch.resize());
+}
+
+document.getElementById('pdf').addEventListener('click', () => {
+  preparerImpression();
+  setTimeout(() => window.print(), 200);
+});
+window.addEventListener('beforeprint', preparerImpression);
+window.addEventListener('afterprint', finirImpression);
 
 window.addEventListener('hashchange', show);
 show();

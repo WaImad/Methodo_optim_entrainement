@@ -40,12 +40,45 @@ nav a {
 
 nav a.active { background: #ddd; }
 
+nav button {
+  margin-top: 2rem;
+  width: 100%;
+  padding: .4rem;
+  font: inherit;
+  cursor: pointer;
+}
+
 main {
   flex: 1;
+  min-width: 0;
+  max-width: 1000px;
   padding: 1rem 2rem;
 }
+
+main h3 { margin: 1.5rem 0 .3rem; font-size: 1rem; }
+
+.chiffres { padding-left: 1.2rem; line-height: 1.8; }
+
+.print-only { display: none; }
 
 @media (max-width: 700px) {
   body { flex-direction: column; }
   nav { width: auto; }
+}
+
+/* export PDF : toutes les pages à la suite, sans la barre de gauche */
+body.printing nav { display: none; }
+body.printing main section { display: block !important; }
+body.printing .print-only { display: block; }
+
+@page { size: A4; margin: 15mm; }
+
+@media print {
+  nav { display: none; }
+  .bloc { break-inside: avoid; }
+  main { padding: 0; max-width: none; }
+  main section { display: block !important; }
+  main section + section { break-before: page; }
+  .print-only { display: block; }
+  canvas { max-width: 100%; break-inside: avoid; }
 }

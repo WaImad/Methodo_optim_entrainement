@@ -18,31 +18,69 @@
     <a href="#externe">Charge externe</a>
     <a href="#interne">Charge interne et psy</a>
     <a href="#evolution">Évolution</a>
+
+    <button id="pdf">Exporter en PDF</button>
   </nav>
 
   <main>
+    <header class="print-only">
+      <h1>Rapport de suivi : <span class="print-name"></span></h1>
+      <p class="small print-date"></p>
+    </header>
+
     <section id="profil">
       <h2>Profil de performance</h2>
-      <p>À venir : courbe de puissance record, CP et W', W/kg.</p>
+      <ul id="profil-chiffres" class="chiffres"></ul>
+      <div class="bloc">
+        <h3>Courbe de puissance record</h3>
+        <canvas id="profil-mmp"></canvas>
+      </div>
     </section>
 
     <section id="externe">
       <h2>Charge externe</h2>
-      <p>À venir : volume, kJ, TSS, temps par zone.</p>
+      <p id="externe-info" class="small"></p>
+      <div class="bloc">
+        <h3>TSS et heures par semaine</h3>
+        <canvas id="externe-semaine"></canvas>
+      </div>
+      <div class="bloc">
+        <h3>Temps par zone de puissance</h3>
+        <canvas id="externe-zones"></canvas>
+      </div>
     </section>
 
     <section id="interne">
       <h2>Charge interne et psychologique</h2>
-      <p>À venir : TRIMP Banister et Edwards, RPE, Hooper.</p>
+      <p id="interne-info" class="small"></p>
+      <div class="bloc">
+        <h3>TRIMP et sRPE par semaine</h3>
+        <canvas id="interne-semaine"></canvas>
+      </div>
+      <div class="bloc">
+        <h3>Temps par zone de fréquence cardiaque</h3>
+        <canvas id="interne-zones"></canvas>
+      </div>
+      <div class="bloc">
+        <h3>Indice de Hooper (de 4 à 28, plus haut = moins bien)</h3>
+        <canvas id="interne-hooper"></canvas>
+      </div>
     </section>
 
     <section id="evolution">
       <h2>Évolution</h2>
-      <p>À venir : semaines, mois, forme / fatigue.</p>
+      <p id="evolution-info" class="small"></p>
+      <div class="bloc"><canvas id="evolution-chart"></canvas></div>
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="data.js"></script>
+  <script src="charts.js"></script>
+  <script src="profil.js"></script>
+  <script src="externe.js"></script>
+  <script src="interne.js"></script>
+  <script src="evolution.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
