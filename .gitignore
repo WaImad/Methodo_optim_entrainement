@@ -1,0 +1,8 @@
+# données brutes des coureurs (traces gps), à ne pas publier
+data_cycliste/
+data_psychologique/
+Data_Cyclist*/
+*.zip
+
+__pycache__/
+.venv/
