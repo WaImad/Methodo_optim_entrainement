@@ -1,39 +1,45 @@
 import json
 import re
+import sys
 from pathlib import Path
-from datetime import datetime   
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from commun.donnees import DOSSIER_PSY, lister_seances, lire_seance, a_puissance, a_fc, charger_parametres
+
 # ---------- Paramètres à adapter ----------
-DOSSIER_SORTIES = Path("data_cycliste/Sorties_velo")   # 1 sous-dossier par cycliste
-DOSSIER_XLSX = Path("data_psychologique")              # 1 .xlsx par cycliste
-FC_MAX = {}             # ex : {"cyclist1": 192}. Sinon : max observé sur ses sorties
-HR_MIN_VALIDE = 30      # en dessous, la mesure est considérée comme invalide
-PAUSE_MAX_S = 10        # un trou > 10 s entre deux mesures n'est pas compté comme effort
+# séances, nettoyage (FC valide 30-230 bpm, pauses > 10 s) et FC max : communs à tout le groupe (dossier commun/)
+DOSSIER_XLSX = DOSSIER_PSY                             # 1 .xlsx par cycliste
+FC_MAX = {}             # ex : {"cyclist1": 192} pour forcer une valeur. Sinon : commun/parametres.json
 BORNES = [0.5, 0.6, 0.7, 0.8, 0.9]   # zones Edwards (% FC max)
-FICHIER_SORTIE = "charge_interne/charge_interne.json"
+FICHIER_SORTIE = Path(__file__).resolve().parent / "charge_interne.json"
 
 
 # ---------- Lecture d'une sortie ----------
 def lire_sortie(f):
-    df = pd.read_csv(f, usecols=["secs", "hr"], dtype="float32").dropna()
-    if df.empty:
-        return None
-    duree_s = float(df["secs"].max() - df["secs"].min())
-    # temps écoulé entre deux mesures (les trous trop longs sont plafonnés)
-    dt = df["secs"].diff().fillna(0).clip(lower=0, upper=PAUSE_MAX_S)
-    ok = df["hr"] >= HR_MIN_VALIDE
-    hist = dt[ok].groupby(df.loc[ok, "hr"].round().astype(int)).sum()
+    df = lire_seance(f, colonnes=("hr", "watts"))
+    # durée = temps écoulé entre deux mesures, les trous trop longs sont plafonnés
+    sortie = {
+        "duree_s": float(df["dt"].sum()),
+        "a_puissance": a_puissance(df),
+        "a_fc": a_fc(df),
+        "hist": None,
+        "hr_max": None,
+        "hr_moy": None,
+    }
+    ok = df["hr"].notna()
+    hist = df.loc[ok, "dt"].groupby(df.loc[ok, "hr"].round().astype(int)).sum()
     if hist.empty or hist.sum() == 0:
-        return None
-    return {
-        "duree_s": duree_s,
+        return sortie   # séance gardée, sans indicateurs de FC
+    sortie.update({
         "hist": hist,
         "hr_max": int(hist.index.max()),
         "hr_moy": float((hist.index.to_numpy() * hist.to_numpy()).sum() / hist.sum()),
-    }
+    })
+    return sortie
 
 
 def zones_edwards(hist, fc_max):
@@ -109,27 +115,26 @@ def propre(v):
 # ---------- Construction ----------
 def construire():
     resultat = {}
-    for dossier in sorted(d for d in DOSSIER_SORTIES.iterdir() if d.is_dir()):
-        m = re.match(r"(cyclist\d+)(?:_(\d+)kg)?", dossier.name)
-        cycliste = m.group(1) if m else dossier.name       # "cyclist1"
-        poids_cycliste = int(m.group(2)) if m and m.group(2) else None
-        fichiers = [f for f in dossier.rglob("*.csv") if "fc_repos" not in f.name]
+    parametres = charger_parametres()
+    for cycliste, liste in lister_seances().groupby("cycliste"):   # vélo et autres sports
+        poids_cycliste = int(liste["poids_kg"].iloc[0])
 
         # Passe 1 : lecture légère de toutes les sorties
         sorties = []
-        for f in fichiers:
+        for _, ligne in liste.iterrows():
+            f = ligne["fichier"]
             try:
                 res = lire_sortie(f)
             except Exception as e:
                 print(f"[{cycliste}] erreur {f.name} : {e}")
                 continue
-            if res:
-                res["fichier"] = f
-                sorties.append(res)
+            res["fichier"] = f
+            res["sport"] = ligne["sport"]
+            sorties.append(res)
         if not sorties:
             continue
 
-        fc_max = FC_MAX.get(cycliste) or max(x["hr_max"] for x in sorties)
+        fc_max = FC_MAX.get(cycliste) or parametres[cycliste]["fc_max"]
         s, h = lire_xlsx(cycliste)
         if s is None:
             print(f"[{cycliste}] pas de fichier xlsx trouvé")
@@ -140,7 +145,11 @@ def construire():
             f = x["fichier"]
             stem = f.stem
             date = date_depuis_nom(stem)
-            t_min, trimp = zones_edwards(x["hist"], fc_max)
+            # séance sans FC : pas de zones ni de TRIMP, mais RPE et Hooper quand même
+            if x["hist"] is not None:
+                t_min, trimp = zones_edwards(x["hist"], fc_max)
+            else:
+                t_min, trimp = [None] * 6, None
 
             ligne_s = trouver_seance(s, stem, date)
             ligne_h = {}
@@ -149,23 +158,27 @@ def construire():
 
             rpe = ligne_s.get("rpe")
             hooper = [ligne_h.get(k) for k in ("sommeil", "stress", "fatigue", "courbatures")]
+            arrondi = lambda v, n: round(v, n) if v is not None else None
 
             seances.append({
-                "cycliste": cycliste,
-                "annee": int(date.year) if pd.notna(date) else None,
-                "date": date,
                 "seance": stem,
-                "poids_kg": poids_cycliste,
+                "date": date,
+                "annee": int(date.year) if pd.notna(date) else None,
+                "sport": x["sport"],
                 "duree_s": round(x["duree_s"]),
                 "duree_h": round(x["duree_s"] / 3600, 3),
-                "hr_moy": round(x["hr_moy"], 1),
+                "a_puissance": x["a_puissance"],
+                "a_fc": x["a_fc"],
+                "cycliste": cycliste,
+                "poids_kg": poids_cycliste,
+                "hr_moy": arrondi(x["hr_moy"], 1),
                 "hr_max": x["hr_max"],
-                "t_z1": round(t_min[1], 2),
-                "t_z2": round(t_min[2], 2),
-                "t_z3": round(t_min[3], 2),
-                "t_z4": round(t_min[4], 2),
-                "t_z5": round(t_min[5], 2),
-                "trimp_edwards": round(trimp, 1),
+                "t_z1": arrondi(t_min[1], 2),
+                "t_z2": arrondi(t_min[2], 2),
+                "t_z3": arrondi(t_min[3], 2),
+                "t_z4": arrondi(t_min[4], 2),
+                "t_z5": arrondi(t_min[5], 2),
+                "trimp_edwards": arrondi(trimp, 1),
                 "rpe": rpe,
                 "lactate": ligne_s.get("lactate"),
                 "sommeil": ligne_h.get("sommeil"),
@@ -178,16 +191,17 @@ def construire():
             })
 
         seances.sort(key=lambda d: d["seance"])
-        seances.sort(key=lambda d: d["seance"])
         resultat[cycliste] = {
             "info": {
                 "poids_kg": poids_cycliste,
+                "fc_max": fc_max,
                 "annees": sorted({s["annee"] for s in seances if s["annee"]}),
                 "nb_seances_total": len(seances),
+                "nb_seances_fc": sum(1 for s in seances if s["a_fc"]),
             },
             "seances": seances,
         }
-        print(f"[{cycliste}] {len(seances)} séances, FC max = {fc_max}")
+        print(f"[{cycliste}] {len(seances)} séances (dont {resultat[cycliste]['info']['nb_seances_fc']} avec FC), FC max = {fc_max}")
 
     return resultat
 
@@ -199,6 +213,7 @@ if __name__ == "__main__":
             "date_export": datetime.now().isoformat(timespec="seconds"),
             "description": "Données de charge interne (FC moyenne, TRIMP, s-RPE) "
                            "organisées par cycliste",
+            "parametres": charger_parametres(),
         },
         "cyclistes": construire(),
     })

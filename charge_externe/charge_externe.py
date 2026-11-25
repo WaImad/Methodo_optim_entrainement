@@ -5,6 +5,9 @@ Script de calcul de la charge d'entraînement externe pour cyclistes
 Ce script traite les données d'entraînement de cyclistes (fichiers CSV avec puissance et fréquence cardiaque)
 et calcule les indicateurs de charge externe, notamment le TSS (Training Stress Score).
 
+Les séances sont lues avec la lecture commune (commun/donnees.py) et la FTP vient de commun/parametres.json,
+pour que toutes les parties travaillent sur les mêmes séances et les mêmes valeurs.
+
 Sortie : Un fichier JSON structuré par cycliste avec toutes les métriques pour une application de visualisation
 
 Auteur : Équipe FARSI, ORLANDI, GEINDRE, COVA CORREA
@@ -14,95 +17,50 @@ Date : 2026-11-20
 import pandas as pd
 import numpy as np
 import json
+import sys
 from pathlib import Path
 import re
 from datetime import datetime
 import warnings
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from commun.donnees import lister_seances, lire_seance, a_puissance, a_fc, charger_parametres
+
 # Ignorer les avertissements pour un affichage plus propre
 warnings.filterwarnings('ignore')
+
+FICHIER_SORTIE = Path(__file__).resolve().parent / "charge_externe.json"
+
+# Zones de Coggan (en fraction de la FTP)
+BORNES_ZONES = [-np.inf, 0.55, 0.75, 0.90, 1.05, 1.20, np.inf]
+NOMS_ZONES = ['Z1 Récup', 'Z2 Endurance', 'Z3 Tempo', 'Z4 Seuil', 'Z5 VO2max', 'Z6 Anaérobie']
 
 
 # ==============================
 # 1. CHARGEMENT DES DONNÉES
 # ==============================
 
-def charger_donnees_cyclistes(dossier="data_cycliste/Sorties_velo"):
+def charger_donnees_cyclistes():
     """
-    Charge tous les fichiers CSV d'entraînement des cyclistes
+    Liste toutes les séances des cyclistes (vélo et autres sports), sans les lire
 
-    Paramètres:
-        dossier : chemin vers le dossier contenant les données
-                  Par défaut: data_cycliste/Sorties_velo (structure branche main)
+    Les fichiers sont lus un par un dans resumer_seances, pour ne pas garder 2 Go en mémoire.
 
     Retourne:
-        dict : dictionnaire avec un DataFrame par cycliste
+        dict : dictionnaire avec la liste des séances (DataFrame) par cycliste
     """
-    print(f"Chargement des données depuis {dossier}...")
+    print("Liste des séances (data_cycliste/Sorties_velo et Sorties_autres)...")
 
-    # Trouver tous les fichiers CSV, en excluant les fichiers fc_repos
-    dossier_path = Path(dossier)
+    seances = lister_seances()
+    print(f"   {len(seances)} séances trouvées")
 
-    # Vérifier si le dossier existe, sinon essayer l'ancienne structure
-    if not dossier_path.exists():
-        print(f"   Dossier {dossier} introuvable, essai avec data_cycliste/...")
-        dossier_path = Path("data_cycliste")
-
-    fichiers = [f for f in dossier_path.rglob("*.csv") if "fc_repos" not in f.name]
-
-    print(f"   {len(fichiers)} fichiers à charger")
-
-    donnees_brutes = []
-
-    for fichier in fichiers:
-        try:
-            # Lire le fichier CSV
-            df = pd.read_csv(fichier)
-
-            # Vérifier que le fichier contient bien des données
-            if df.shape[1] < 2:
-                continue
-
-            # Extraire les informations du chemin du fichier
-            chemin_str = str(fichier)
-
-            # Identifiant du cycliste (ex: cyclist1, cyclist2...)
-            cycliste_match = re.search(r'cyclist\d+', chemin_str)
-            cycliste = cycliste_match.group(0) if cycliste_match else None
-
-            # Poids du cycliste (ex: 70kg)
-            poids_match = re.search(r'(\d+)kg', chemin_str)
-            poids_kg = int(poids_match.group(1)) if poids_match else None
-
-            # Année (ex: 2022)
-            annee_match = re.search(r'/(\d{4})/', chemin_str)
-            annee = int(annee_match.group(1)) if annee_match else None
-
-            # Nom de la séance (nom du fichier sans extension)
-            seance = fichier.stem
-
-            # Ajouter les métadonnées au DataFrame
-            df['cycliste'] = cycliste
-            df['poids_kg'] = poids_kg
-            df['annee'] = annee
-            df['seance'] = seance
-
-            donnees_brutes.append(df)
-
-        except Exception as e:
-            print(f"   Erreur lors du chargement de {fichier.name}: {e}")
-            continue
-
-    # Combiner toutes les données en un seul DataFrame
-    df_complet = pd.concat(donnees_brutes, ignore_index=True)
-
-    # Organiser les données par cycliste dans un dictionnaire
+    # Organiser les séances par cycliste dans un dictionnaire
     donnees = {
         cycliste: groupe.reset_index(drop=True)
-        for cycliste, groupe in df_complet.groupby('cycliste')
+        for cycliste, groupe in seances.groupby('cycliste')
     }
 
-    print(f"   {len(donnees)} cyclistes chargés")
+    print(f"   {len(donnees)} cyclistes trouvés")
     return donnees
 
 
@@ -112,7 +70,7 @@ def charger_donnees_cyclistes(dossier="data_cycliste/Sorties_velo"):
 
 def preparer_seance(df_seance):
     """
-    Prépare une séance : trie par temps, remplace les valeurs manquantes
+    Prépare une séance : trie par temps (le nettoyage est fait par lire_seance)
 
     Paramètres:
         df_seance : DataFrame d'une séance individuelle
@@ -130,11 +88,6 @@ def preparer_seance(df_seance):
             dt = 1.0
     else:
         dt = 1.0
-
-    # Remplacer les puissances manquantes ou négatives par 0
-    # (cela correspond à une roue libre ou une perte de signal)
-    df['watts'] = df['watts'].fillna(0)
-    df.loc[df['watts'] < 0, 'watts'] = 0
 
     return df, dt
 
@@ -200,52 +153,66 @@ def puissance_normalisee(watts, dt):
     return np_value
 
 
-def resumer_seances(df_cycliste):
+def resumer_seances(df_cycliste, parametres):
     """
-    Résume chaque séance d'un cycliste : durée, puissances, travail total
+    Résume chaque séance d'un cycliste : durée, puissances, travail total, temps par zone
+
+    Les séances sans capteur de puissance (et les autres sports) sont gardées,
+    avec les indicateurs de puissance à vide (NaN, null dans le JSON).
 
     Paramètres:
-        df_cycliste : DataFrame contenant toutes les séances d'un cycliste
+        df_cycliste : DataFrame avec la liste des séances d'un cycliste
+        parametres : FTP par année (commun/parametres.json)
 
     Retourne:
         DataFrame avec une ligne par séance et ses indicateurs
     """
     resultats = []
 
-    # Grouper par séance
-    for (cycliste, annee, seance, poids_kg), groupe in df_cycliste.groupby(
-        ['cycliste', 'annee', 'seance', 'poids_kg']
-    ):
-        # Préparer la séance
-        df_prep, dt = preparer_seance(groupe)
+    for _, s in df_cycliste.iterrows():
+        # Lire et préparer la séance
+        df_prep, dt = preparer_seance(lire_seance(s['fichier']))
+        puissance = s['sport'] == 'velo' and a_puissance(df_prep)
 
-        # Calculer les indicateurs
-        duree_s = len(df_prep) * dt
-        p_moy = df_prep['watts'].mean()
-        np = puissance_normalisee(df_prep['watts'], dt)
-        mmp20 = meilleure_puissance(df_prep['watts'], dt, duree_s=1200)
-        travail_kj = (df_prep['watts'] * dt).sum() / 1000
+        # Durée : somme des pas de temps, les pauses de plus de 10 s ne comptent pas
+        duree_s = df_prep['dt'].sum()
 
-        # Fréquence cardiaque moyenne (en excluant les valeurs à 0 = perte de signal)
-        if 'hr' in df_prep.columns:
-            hr_valides = df_prep['hr'][df_prep['hr'] > 0]
-            hr_moy = hr_valides.mean() if len(hr_valides) > 0 else float('nan')
-        else:
-            hr_moy = float('nan')
+        # Fréquence cardiaque moyenne (les pertes de signal sont déjà retirées)
+        hr_moy = df_prep['hr'].mean() if a_fc(df_prep) else np.nan
 
-        resultats.append({
-            'cycliste': cycliste,
-            'annee': annee,
-            'seance': seance,
-            'poids_kg': poids_kg,
+        ligne = {
+            'cycliste': s['cycliste'],
+            'annee': s['annee'],
+            'seance': s['seance'],
+            'date': s['date'].strftime('%Y-%m-%d'),
+            'sport': s['sport'],
+            'poids_kg': s['poids_kg'],
             'duree_s': duree_s,
             'duree_h': duree_s / 3600,
-            'p_moy': p_moy,
-            'np': np,
-            'mmp20': mmp20,
-            'travail_kj': travail_kj,
+            'a_puissance': puissance,
+            'a_fc': a_fc(df_prep),
+            'p_moy': np.nan,
+            'np': np.nan,
+            'mmp20': np.nan,
+            'travail_kj': np.nan,
             'hr_moy': hr_moy
-        })
+        }
+
+        if puissance:
+            ligne['p_moy'] = df_prep['watts'].mean()
+            ligne['np'] = puissance_normalisee(df_prep['watts'], dt)
+            ligne['mmp20'] = meilleure_puissance(df_prep['watts'], dt, duree_s=1200)
+            ligne['travail_kj'] = (df_prep['watts'] * df_prep['dt']).sum() / 1000
+
+            # Temps passé dans chaque zone de puissance (minutes)
+            ftp = parametres[s['cycliste']]['ftp'].get(str(s['annee']))
+            if ftp:
+                zone = pd.cut(df_prep['watts'] / ftp, bins=BORNES_ZONES, labels=NOMS_ZONES, right=False)
+                minutes = df_prep['dt'].groupby(zone).sum() / 60
+                for i, nom in enumerate(NOMS_ZONES, start=1):
+                    ligne[f'tp_z{i}'] = minutes.get(nom, 0.0)
+
+        resultats.append(ligne)
 
     return pd.DataFrame(resultats)
 
@@ -254,29 +221,31 @@ def resumer_seances(df_cycliste):
 # 3. CALCUL DE LA FTP ET DU TSS
 # ==============================
 
-def calculer_ftp(df_seances):
+def calculer_ftp(parametres):
     """
-    Estime la FTP (Functional Threshold Power) pour chaque cycliste et chaque saison
+    Récupère la FTP (Functional Threshold Power) de chaque cycliste et chaque saison
 
     La FTP est estimée à 95% de la meilleure puissance sur 20 minutes de la saison.
     C'est la puissance maximale qu'un cycliste peut maintenir pendant environ 1 heure.
+    Elle est calculée une seule fois pour tout le groupe par commun/parametres.py.
 
     Paramètres:
-        df_seances : DataFrame avec toutes les séances résumées
+        parametres : contenu de commun/parametres.json
 
     Retourne:
         DataFrame avec la FTP par cycliste et par saison
     """
-    print("Calcul de la FTP (seuil fonctionnel)...")
+    print("FTP (seuil fonctionnel) lue dans commun/parametres.json...")
 
-    ftp = df_seances.groupby(['cycliste', 'annee']).agg(
-        mmp20_saison=('mmp20', 'max')
-    ).reset_index()
+    ftp = pd.DataFrame([
+        {'cycliste': c, 'annee': int(a), 'ftp': f}
+        for c, p in parametres.items() for a, f in p['ftp'].items()
+    ])
 
     # FTP = 95% de la meilleure puissance sur 20 minutes
-    ftp['ftp'] = ftp['mmp20_saison'] * 0.95
+    ftp['mmp20_saison'] = ftp['ftp'] / 0.95
 
-    print("   FTP calculée pour chaque cycliste/saison")
+    print("   FTP récupérée pour chaque cycliste/saison")
     return ftp
 
 
@@ -307,17 +276,17 @@ def calculer_tss(df_seances, df_ftp):
     # Calculer l'IF (Intensity Factor)
     df['IF'] = df['np'] / df['ftp']
 
-    # Calculer le TSS
+    # Calculer le TSS (vide pour les séances sans puissance)
     df['TSS'] = (df['duree_s'] * df['np'] * df['IF']) / (df['ftp'] * 3600) * 100
 
     # Calculer la FTP en W/kg (pour comparer les cyclistes entre eux)
     df['ftp_wkg'] = df['ftp'] / df['poids_kg']
 
-    print("   TSS calculé pour toutes les séances")
+    print("   TSS calculé pour toutes les séances avec puissance")
     return df
 
 
-def calculer_zones_puissance(donnees, df_ftp):
+def calculer_zones_puissance(df_seances):
     """
     Calcule la répartition du temps passé dans chaque zone de puissance
 
@@ -330,53 +299,28 @@ def calculer_zones_puissance(donnees, df_ftp):
     - Z6 Anaérobie : > 120% FTP
 
     Paramètres:
-        donnees : dictionnaire avec les données brutes par cycliste
-        df_ftp : DataFrame avec les FTP
+        df_seances : DataFrame des séances, avec le temps par zone (tp_z1 ... tp_z6, en minutes)
 
     Retourne:
         DataFrame avec le pourcentage de temps par zone
     """
     print("Calcul des zones de puissance...")
 
-    bornes = [-np.inf, 0.55, 0.75, 0.90, 1.05, 1.20, np.inf]
-    noms = ['Z1 Récup', 'Z2 Endurance', 'Z3 Tempo', 'Z4 Seuil', 'Z5 VO2max', 'Z6 Anaérobie']
+    colonnes = [f'tp_z{i}' for i in range(1, 7)]
+    df = df_seances[df_seances['a_puissance']]
 
-    resultats_zones = []
+    # Secondes par zone, par cycliste et par saison
+    comptage = (df.groupby(['cycliste', 'annee'])[colonnes].sum() * 60).reset_index()
+    comptage = comptage.melt(id_vars=['cycliste', 'annee'], var_name='zone', value_name='n')
+    comptage['zone'] = comptage['zone'].map(dict(zip(colonnes, NOMS_ZONES)))
 
-    for cycliste, df_cycliste in donnees.items():
-        # S'assurer que annee est du bon type
-        df_cycliste_copy = df_cycliste.copy()
-        if 'annee' in df_cycliste_copy.columns:
-            df_cycliste_copy['annee'] = pd.to_numeric(df_cycliste_copy['annee'], errors='coerce')
-
-        # Joindre les FTP
-        df = df_cycliste_copy.merge(df_ftp[['cycliste', 'annee', 'ftp']],
-                                     on=['cycliste', 'annee'],
-                                     how='inner')
-
-        # Exclure les lignes sans données valides
-        df = df.dropna(subset=['watts', 'ftp'])
-
-        # Calculer le ratio puissance / FTP
-        df['ratio_ftp'] = df['watts'] / df['ftp']
-
-        # Assigner chaque seconde à une zone
-        df['zone'] = pd.cut(df['ratio_ftp'], bins=bornes, labels=noms, right=False)
-
-        # Compter le nombre de secondes par zone
-        comptage = df.groupby(['cycliste', 'annee', 'zone']).size().reset_index(name='n')
-
-        # Calculer le pourcentage
-        comptage['pct'] = comptage.groupby(['cycliste', 'annee'])['n'].transform(
-            lambda x: x / x.sum() * 100
-        )
-
-        resultats_zones.append(comptage)
-
-    zones_df = pd.concat(resultats_zones, ignore_index=True)
+    # Calculer le pourcentage
+    comptage['pct'] = comptage.groupby(['cycliste', 'annee'])['n'].transform(
+        lambda x: x / x.sum() * 100
+    )
 
     print("   Zones de puissance calculées")
-    return zones_df
+    return comptage.sort_values(['cycliste', 'annee', 'zone']).reset_index(drop=True)
 
 
 def extraire_date_seance(seance_nom):
@@ -419,6 +363,7 @@ def calculer_stats_par_cycliste(df_tss):
     """
     stats = df_tss.groupby(['cycliste', 'annee']).agg(
         n_seances=('seance', 'count'),
+        n_seances_puissance=('a_puissance', 'sum'),
         TSS_moyen=('TSS', 'mean'),
         TSS_total=('TSS', 'sum'),
         IF_moyen=('IF', 'mean'),
@@ -445,8 +390,8 @@ def calculer_charge_hebdomadaire(df_tss):
     # Filtrer les séances avec date valide
     df = df_tss.dropna(subset=['date_debut']).copy()
 
-    # Calculer le numéro de semaine
-    df['semaine'] = df['date_debut'].dt.to_period('W-MON').dt.start_time
+    # Calculer la semaine (du lundi au dimanche : 'W-SUN' = semaines qui finissent le dimanche)
+    df['semaine'] = df['date_debut'].dt.to_period('W-SUN').dt.start_time
 
     # Agréger par semaine
     charge_hebdo = df.groupby(['cycliste', 'semaine']).agg(
@@ -489,21 +434,25 @@ def controle_qualite(df_tss):
 # 6. EXPORT JSON (PAR CYCLISTE)
 # ==============================
 
-def exporter_json_par_cycliste(df_tss, df_ftp, df_zones, df_stats, charge_hebdo, fichier_sortie="charge_externe.json"):
+def exporter_json_par_cycliste(df_tss, df_ftp, df_zones, df_stats, charge_hebdo, parametres,
+                               fichier_sortie=FICHIER_SORTIE):
     """
     Exporte toutes les données au format JSON structuré par cycliste
 
     Structure :
     {
-      "cyclist1": {
-        "info": {...},
-        "seances": [...],
-        "ftp": {...},
-        "zones_puissance": [...],
-        "stats": {...},
-        "charge_hebdomadaire": [...]
-      },
-      "cyclist2": {...}
+      "metadata": {..., "parametres": {...}},
+      "cyclistes": {
+        "cyclist1": {
+          "info": {...},
+          "seances": [...],
+          "ftp": {...},
+          "zones_puissance": [...],
+          "stats": {...},
+          "charge_hebdomadaire": [...]
+        },
+        "cyclist2": {...}
+      }
     }
 
     Paramètres:
@@ -512,6 +461,7 @@ def exporter_json_par_cycliste(df_tss, df_ftp, df_zones, df_stats, charge_hebdo,
         df_zones : répartition par zones
         df_stats : statistiques par cycliste
         charge_hebdo : charge hebdomadaire
+        parametres : FTP et FC max communes
         fichier_sortie : nom du fichier JSON
     """
     print(f"Export des données vers {fichier_sortie}...")
@@ -521,6 +471,10 @@ def exporter_json_par_cycliste(df_tss, df_ftp, df_zones, df_stats, charge_hebdo,
     df_tss_export['date_debut'] = df_tss_export['seance'].apply(extraire_date_seance)
     df_tss_export['date_debut'] = df_tss_export['date_debut'].astype(str)
 
+    # Mêmes champs de base en tête pour toutes les parties
+    base = ['seance', 'date', 'annee', 'sport', 'duree_s', 'duree_h', 'a_puissance', 'a_fc']
+    df_tss_export = df_tss_export[base + [c for c in df_tss_export.columns if c not in base]]
+
     charge_hebdo_export = charge_hebdo.copy()
     charge_hebdo_export['semaine'] = charge_hebdo_export['semaine'].astype(str)
 
@@ -528,14 +482,15 @@ def exporter_json_par_cycliste(df_tss, df_ftp, df_zones, df_stats, charge_hebdo,
     donnees_json = {
         'metadata': {
             'titre': 'Charge d\'entraînement externe - Cyclistes',
-            'date_export': datetime.now().isoformat(),
-            'description': 'Données de charge externe (TSS, FTP, zones) organisées par cycliste'
+            'date_export': datetime.now().isoformat(timespec='seconds'),
+            'description': 'Données de charge externe (TSS, FTP, zones) organisées par cycliste',
+            'parametres': parametres
         },
         'cyclistes': {}
     }
 
     # Obtenir la liste unique des cyclistes
-    cyclistes = df_tss_export['cycliste'].unique()
+    cyclistes = sorted(df_tss_export['cycliste'].unique())
 
     for cycliste in cyclistes:
         # Filtrer les données pour ce cycliste
@@ -565,9 +520,11 @@ def exporter_json_par_cycliste(df_tss, df_ftp, df_zones, df_stats, charge_hebdo,
 
     # Fonction pour convertir les types numpy/pandas en types Python natifs
     def convertir_types(obj):
-        if isinstance(obj, (np.integer, np.int64)):
+        if isinstance(obj, (np.bool_, bool)):
+            return bool(obj)
+        elif isinstance(obj, (np.integer, np.int64)):
             return int(obj)
-        elif isinstance(obj, (np.floating, np.float64)):
+        elif isinstance(obj, (np.floating, float)):
             return float(obj) if not np.isnan(obj) else None
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
@@ -600,17 +557,18 @@ def main():
     print("    CALCUL DE LA CHARGE D'ENTRAÎNEMENT EXTERNE")
     print("="*60 + "\n")
 
-    # Étape 1 : Charger les données
+    # Étape 1 : Lister les séances et lire les paramètres communs
     donnees = charger_donnees_cyclistes()
+    parametres = charger_parametres()
 
     # Étape 2 : Résumer chaque séance
     print("\nRésumé des séances...")
-    seances = pd.concat([resumer_seances(df) for df in donnees.values()], ignore_index=True)
-    print(f"   {len(seances)} séances traitées")
+    seances = pd.concat([resumer_seances(df, parametres) for df in donnees.values()], ignore_index=True)
+    print(f"   {len(seances)} séances traitées, dont {int(seances['a_puissance'].sum())} avec puissance")
 
-    # Étape 3 : Calculer la FTP
+    # Étape 3 : FTP commune
     print()
-    ftp = calculer_ftp(seances)
+    ftp = calculer_ftp(parametres)
     print(ftp[['cycliste', 'annee', 'ftp']].to_string(index=False))
 
     # Étape 4 : Calculer le TSS
@@ -619,16 +577,17 @@ def main():
 
     # Étape 5 : Calculer les zones de puissance
     print()
-    zones = calculer_zones_puissance(donnees, ftp)
+    zones = calculer_zones_puissance(tss)
 
-    # Étape 6 : Statistiques par cycliste
+    # Étape 6 : Statistiques par cycliste (sorties vélo)
+    velo = tss[tss['sport'] == 'velo']
     print("\nCalcul des statistiques par cycliste...")
-    stats = calculer_stats_par_cycliste(tss)
+    stats = calculer_stats_par_cycliste(velo)
     print(stats.to_string(index=False))
 
-    # Étape 7 : Charge hebdomadaire
+    # Étape 7 : Charge hebdomadaire (sorties vélo)
     print("\nCalcul de la charge hebdomadaire...")
-    charge_hebdo = calculer_charge_hebdomadaire(tss)
+    charge_hebdo = calculer_charge_hebdomadaire(velo.copy())
     print(f"   {len(charge_hebdo)} semaines analysées")
 
     # Étape 8 : Contrôle qualité
@@ -637,7 +596,8 @@ def main():
 
     # Étape 9 : Export JSON (PAR CYCLISTE)
     print()
-    exporter_json_par_cycliste(tss, ftp, zones, stats, charge_hebdo)
+    exporter_json_par_cycliste(tss.drop(columns=['mmp20_saison'], errors='ignore'), ftp, zones, stats,
+                               charge_hebdo, parametres)
 
     print("\n" + "="*60)
     print("    TRAITEMENT TERMINÉ AVEC SUCCÈS")

@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "date_export": "2026-11-25T05:58:00",
+    "ftp": "0.95 x meilleure 20 min de l'année (sorties vélo avec puissance)",
+    "fc_max": "plus haute moyenne glissante sur 10 s, toutes séances"
+  },
+  "cyclistes": {
+    "cyclist1": {
+      "poids_kg": 76,
+      "fc_max": 225,
+      "ftp": {
+        "2022": 399
+      }
+    },
+    "cyclist2": {
+      "poids_kg": 63,
+      "fc_max": 197,
+      "ftp": {
+        "2022": 280,
+        "2023": 282
+      }
+    },
+    "cyclist3": {
+      "poids_kg": 65,
+      "fc_max": 197,
+      "ftp": {
+        "2023": 320
+      }
+    },
+    "cyclist4": {
+      "poids_kg": 58,
+      "fc_max": 193,
+      "ftp": {
+        "2022": 281,
+        "2023": 276
+      }
+    },
+    "cyclist5": {
+      "poids_kg": 65,
+      "fc_max": 197,
+      "ftp": {
+        "2023": 337
+      }
+    },
+    "cyclist6": {
+      "poids_kg": 71,
+      "fc_max": 213,
+      "ftp": {
+        "2023": 358
+      }
+    },
+    "cyclist7": {
+      "poids_kg": 74,
+      "fc_max": 200,
+      "ftp": {
+        "2022": 389
+      }
+    }
+  }
+}
