@@ -1,0 +1,584 @@
+{
+  "metadata": {
+    "generated_at": "2026-11-25T11:48:36.453896",
+    "athlete_id": "cyclist3"
+  },
+  "athlete_id": "cyclist3",
+  "profil_choisi": "puncheur",
+  "info": {
+    "poids_kg": 65,
+    "fc_max": 197.0,
+    "fc_repos": null,
+    "annees": [
+      2023
+    ],
+    "nb_fichiers_lus": 216,
+    "nb_seances_valides": 216
+  },
+  "global_profile": {
+    "n_rides": 216,
+    "date_start": "2023-01-01",
+    "date_end": "2023-10-02",
+    "total_hours": 523.0508333333332,
+    "total_distance_km": 17946.399141101632,
+    "total_work_kj": 342257.802284196,
+    "median_avg_watts": 178.57220458984375,
+    "bioenergetics": {
+      "mmp_5s": 1311.8,
+      "mmp_30s": 1005.3333333333334,
+      "mmp_60s": 710.2166666666667,
+      "mmp_180s": 490.51666666666665,
+      "mmp_300s": 431.76,
+      "mmp_480s": 381.26666666666665,
+      "mmp_1200s": 337.0991666666667,
+      "mmp_3600s": 315.9533333333333,
+      "mmp_5s_w_kg": 20.181538461538462,
+      "mmp_30s_w_kg": 15.466666666666667,
+      "mmp_60s_w_kg": 10.926410256410257,
+      "mmp_180s_w_kg": 7.546410256410256,
+      "mmp_300s_w_kg": 6.642461538461538,
+      "mmp_480s_w_kg": 5.865641025641025,
+      "mmp_1200s_w_kg": 5.186141025641026,
+      "mmp_3600s_w_kg": 4.860820512820513,
+      "cp_w_kg": 4.8273613870699315,
+      "w_prime_j_kg": 502.40823236477047,
+      "cp_watts": 313.7784901595455,
+      "w_prime_joules": 32656.53510371008,
+      "w_prime_kj": 32.656535103710084
+    },
+    "signature_1_bioenergetic_valenzuela": {
+      "raw": {
+        "dominant_profile": "Polyvalent_Puncheur",
+        "min_rms_z_distance": 1.3884538766882062,
+        "dominant_probability_pct": 99.15150421512095,
+        "second_profile": "Sprinteur",
+        "second_probability_pct": 0.8382085885570381,
+        "variables_used": [
+          "poids_kg",
+          "cp_watts",
+          "w_prime_kj"
+        ],
+        "rms_z_distances": {
+          "Grimpeur": 4.398131628097493,
+          "Rouleur_CLM": 2.8361021561019926,
+          "Polyvalent_Puncheur": 1.3884538766882062,
+          "Sprinteur": 2.260507844800434,
+          "Classement_General": 4.076176440040758
+        },
+        "membership_probabilities_pct": {
+          "Grimpeur": 4.4765984358847425e-10,
+          "Rouleur_CLM": 0.010287169063664574,
+          "Polyvalent_Puncheur": 99.15150421512095,
+          "Sprinteur": 0.8382085885570381,
+          "Classement_General": 2.6810659713089905e-08
+        },
+        "z_scores_detail": {
+          "Grimpeur": {
+            "poids_kg": 0.4090909090909084,
+            "cp_watts": -1.6390857658721338,
+            "w_prime_kj": 7.4281039259308335
+          },
+          "Rouleur_CLM": {
+            "poids_kg": -1.4074074074074063,
+            "cp_watts": -2.5635694918381913,
+            "w_prime_kj": 3.9468648532259567
+          },
+          "Polyvalent_Puncheur": {
+            "poids_kg": -0.8181818181818182,
+            "cp_watts": -1.4927921085316875,
+            "w_prime_kj": 1.698694421069822
+          },
+          "Sprinteur": {
+            "poids_kg": -2.338461538461539,
+            "cp_watts": -2.8490088540276153,
+            "w_prime_kj": -1.320769976953315
+          },
+          "Classement_General": {
+            "poids_kg": 0.2666666666666673,
+            "cp_watts": -3.1175629100189375,
+            "w_prime_kj": 6.328928305960906
+          }
+        },
+        "hybrid_profile_note": "Polyvalent_Puncheur pur (99.2%)"
+      },
+      "relative": {
+        "dominant_profile": "Sprinteur",
+        "min_rms_z_distance": 1.3773940349987952,
+        "dominant_probability_pct": 51.55644439345941,
+        "second_profile": "Polyvalent_Puncheur",
+        "second_probability_pct": 48.44355241029016,
+        "variables_used": [
+          "poids_kg",
+          "cp_w_kg",
+          "w_prime_j_kg"
+        ],
+        "rms_z_distances": {
+          "Grimpeur": 3.623709365919948,
+          "Rouleur_CLM": 3.7357708069416695,
+          "Polyvalent_Puncheur": 1.3923839160023275,
+          "Sprinteur": 1.3773940349987952,
+          "Classement_General": 4.422215040399871
+        },
+        "membership_probabilities_pct": {
+          "Grimpeur": 2.4771406011862437e-06,
+          "Rouleur_CLM": 7.18948164007821e-07,
+          "Polyvalent_Puncheur": 48.44355241029016,
+          "Sprinteur": 51.55644439345941,
+          "Classement_General": 1.6166738203647993e-10
+        },
+        "z_scores_detail": {
+          "Grimpeur": {
+            "poids_kg": 0.4090909090909084,
+            "cp_w_kg": -1.9898347778549366,
+            "w_prime_j_kg": 5.93860344617369
+          },
+          "Rouleur_CLM": {
+            "poids_kg": -1.4074074074074063,
+            "cp_w_kg": -1.461629853088919,
+            "w_prime_j_kg": 6.144167407234837
+          },
+          "Polyvalent_Puncheur": {
+            "poids_kg": -0.8181818181818182,
+            "cp_w_kg": -0.8459775216584037,
+            "w_prime_j_kg": 2.105017684930777
+          },
+          "Sprinteur": {
+            "poids_kg": -2.338461538461539,
+            "cp_w_kg": 0.2089386800398942,
+            "w_prime_j_kg": 0.42377499226602
+          },
+          "Classement_General": {
+            "poids_kg": 0.2666666666666673,
+            "cp_w_kg": -3.116001511541477,
+            "w_prime_j_kg": 6.9919511625566
+          }
+        },
+        "hybrid_profile_note": "Sprinteur (51.6%) / Polyvalent_Puncheur (48.4%)"
+      }
+    },
+    "signature_2_4points_5s_30s_60s_cp": {
+      "raw_watts": {
+        "5s": 1311.8,
+        "30s": 1005.3333333333334,
+        "60s": 710.2166666666667,
+        "CP": 313.7784901595455
+      },
+      "relative_w_kg": {
+        "5s": 20.181538461538462,
+        "30s": 15.466666666666667,
+        "60s": 10.926410256410257,
+        "CP": 4.8273613870699315
+      }
+    },
+    "explosiveness_ratios": {
+      "ratio_5s_cp": 4.1806562308748285,
+      "ratio_5s_avg_watts": 7.346048076255919,
+      "ratio_30s_cp": 3.203958731594878,
+      "ratio_30s_avg_watts": 5.629842201043821,
+      "ratio_60s_cp": 2.2634332465094915,
+      "ratio_60s_avg_watts": 3.977196049620032
+    },
+    "climbing_performance": {
+      "n_rides_with_climb": 157,
+      "total_climb_hours": 25.902222222222225,
+      "median_watts_climb": 235.7569122314453,
+      "max_watts_climb": 435.8840637207031,
+      "median_watts_climb_w_kg": 3.6270294189453125,
+      "max_watts_climb_w_kg": 6.705908672626202,
+      "median_watts_flat": 174.29839324951172,
+      "median_climb_flat_power_ratio": 1.3590620006515142
+    },
+    "cardiac_drift": {
+      "n_rides_valid": 168,
+      "median_drift_pct": 1.3898484286085924,
+      "iqr_drift_pct": 8.064111274901805,
+      "pct_rides_low_drift_lt5": 75.0
+    },
+    "literature_normalized_scores": {
+      "mmp_5s_w_kg_pct_p90_valenzuela": 0.9688688651722739,
+      "mmp_30s_w_kg_pct_p90_valenzuela": 1.0930506478209658,
+      "mmp_60s_w_kg_pct_p90_valenzuela": 0.9643786634077897,
+      "mmp_300s_w_kg_pct_p90_valenzuela": 0.8682956259426847,
+      "mmp_1200s_w_kg_pct_p90_valenzuela": 0.7869713240729934,
+      "mmp_3600s_w_kg_pct_p90_valenzuela": 0.8438924501424502
+    }
+  },
+  "recent_90d_profile": {
+    "n_rides": 65,
+    "date_start": "2023-07-06",
+    "date_end": "2023-10-02",
+    "total_hours": 148.42388888888888,
+    "total_distance_km": 5283.704609110951,
+    "total_work_kj": 108358.02348136902,
+    "median_avg_watts": 190.72605895996094,
+    "bioenergetics": {
+      "mmp_5s": 1311.8,
+      "mmp_30s": 1005.3333333333334,
+      "mmp_60s": 710.2166666666667,
+      "mmp_180s": 490.51666666666665,
+      "mmp_300s": 431.76,
+      "mmp_480s": 378.98333333333335,
+      "mmp_1200s": 336.0525,
+      "mmp_3600s": 309.77805555555557,
+      "mmp_5s_w_kg": 20.181538461538462,
+      "mmp_30s_w_kg": 15.466666666666667,
+      "mmp_60s_w_kg": 10.926410256410257,
+      "mmp_180s_w_kg": 7.546410256410256,
+      "mmp_300s_w_kg": 6.642461538461538,
+      "mmp_480s_w_kg": 5.830512820512821,
+      "mmp_1200s_w_kg": 5.170038461538462,
+      "mmp_3600s_w_kg": 4.76581623931624,
+      "cp_w_kg": 4.798883931825222,
+      "w_prime_j_kg": 507.7175166738795,
+      "cp_watts": 311.92745556863946,
+      "w_prime_joules": 33001.63858380217,
+      "w_prime_kj": 33.00163858380217
+    },
+    "signature_1_bioenergetic_valenzuela": {
+      "raw": {
+        "dominant_profile": "Polyvalent_Puncheur",
+        "min_rms_z_distance": 1.5047452496799605,
+        "dominant_probability_pct": 98.7733249179912,
+        "second_profile": "Sprinteur",
+        "second_probability_pct": 1.21793253772642,
+        "variables_used": [
+          "poids_kg",
+          "cp_watts",
+          "w_prime_kj"
+        ],
+        "rms_z_distances": {
+          "Grimpeur": 4.556946241759733,
+          "Rouleur_CLM": 2.9130477200285325,
+          "Polyvalent_Puncheur": 1.5047452496799605,
+          "Sprinteur": 2.2791899434132556,
+          "Classement_General": 4.17349757995451
+        },
+        "membership_probabilities_pct": {
+          "Grimpeur": 8.749638845739427e-11,
+          "Rouleur_CLM": 0.008742530926861641,
+          "Polyvalent_Puncheur": 98.7733249179912,
+          "Sprinteur": 1.21793253772642,
+          "Classement_General": 1.3268034739320346e-08
+        },
+        "z_scores_detail": {
+          "Grimpeur": {
+            "poids_kg": 0.4090909090909084,
+            "cp_watts": -1.7143310744455513,
+            "w_prime_kj": 7.693568141386284
+          },
+          "Rouleur_CLM": {
+            "poids_kg": -1.4074074074074063,
+            "cp_watts": -2.6217781267723446,
+            "w_prime_kj": 4.074680956963766
+          },
+          "Polyvalent_Puncheur": {
+            "poids_kg": -0.8181818181818182,
+            "cp_watts": -1.5511843669198917,
+            "w_prime_kj": 1.9279990590047624
+          },
+          "Sprinteur": {
+            "poids_kg": -2.338461538461539,
+            "cp_watts": -2.9271115793823017,
+            "w_prime_kj": -1.2440803147106294
+          },
+          "Classement_General": {
+            "poids_kg": 0.2666666666666673,
+            "cp_watts": -3.1946893513066903,
+            "w_prime_kj": 6.4789732973052905
+          }
+        },
+        "hybrid_profile_note": "Polyvalent_Puncheur pur (98.8%)"
+      },
+      "relative": {
+        "dominant_profile": "Sprinteur",
+        "min_rms_z_distance": 1.3863522761294935,
+        "dominant_probability_pct": 60.70667504512135,
+        "second_profile": "Polyvalent_Puncheur",
+        "second_probability_pct": 39.29332400992685,
+        "variables_used": [
+          "poids_kg",
+          "cp_w_kg",
+          "w_prime_j_kg"
+        ],
+        "rms_z_distances": {
+          "Grimpeur": 3.7614665676056145,
+          "Rouleur_CLM": 3.834355442958261,
+          "Polyvalent_Puncheur": 1.4872699773261748,
+          "Sprinteur": 1.3863522761294935,
+          "Classement_General": 4.528167627618837
+        },
+        "membership_probabilities_pct": {
+          "Grimpeur": 6.580838390855006e-07,
+          "Rouleur_CLM": 2.8682031875410836e-07,
+          "Polyvalent_Puncheur": 39.29332400992685,
+          "Sprinteur": 60.70667504512135,
+          "Classement_General": 4.763561188288839e-11
+        },
+        "z_scores_detail": {
+          "Grimpeur": {
+            "poids_kg": 0.4090909090909084,
+            "cp_w_kg": -2.062910105657629,
+            "w_prime_j_kg": 6.16627429990907
+          },
+          "Rouleur_CLM": {
+            "poids_kg": -1.4074074074074063,
+            "cp_w_kg": -1.5290321140231415,
+            "w_prime_j_kg": 6.307781715681958
+          },
+          "Polyvalent_Puncheur": {
+            "poids_kg": -0.8181818181818182,
+            "cp_w_kg": -0.9113827932355951,
+            "w_prime_j_kg": 2.2662470900054523
+          },
+          "Sprinteur": {
+            "poids_kg": -2.338461538461539,
+            "cp_w_kg": 0.1273881209198795,
+            "w_prime_j_kg": 0.5303657232258483
+          },
+          "Classement_General": {
+            "poids_kg": 0.2666666666666673,
+            "cp_w_kg": -3.186229514611043,
+            "w_prime_j_kg": 7.16168531566111
+          }
+        },
+        "hybrid_profile_note": "Sprinteur (60.7%) / Polyvalent_Puncheur (39.3%)"
+      }
+    },
+    "signature_2_4points_5s_30s_60s_cp": {
+      "raw_watts": {
+        "5s": 1311.8,
+        "30s": 1005.3333333333334,
+        "60s": 710.2166666666667,
+        "CP": 311.92745556863946
+      },
+      "relative_w_kg": {
+        "5s": 20.181538461538462,
+        "30s": 15.466666666666667,
+        "60s": 10.926410256410257,
+        "CP": 4.798883931825222
+      }
+    },
+    "explosiveness_ratios": {
+      "ratio_5s_cp": 4.2054650098325155,
+      "ratio_5s_avg_watts": 6.877927469131975,
+      "ratio_30s_cp": 3.22297160889741,
+      "ratio_30s_avg_watts": 5.27108533996596,
+      "ratio_60s_cp": 2.2768648735070514,
+      "ratio_60s_avg_watts": 3.7237526457554617
+    },
+    "climbing_performance": {
+      "n_rides_with_climb": 43,
+      "total_climb_hours": 7.2972222222222225,
+      "median_watts_climb": 239.23875427246094,
+      "max_watts_climb": 410.45623779296875,
+      "median_watts_climb_w_kg": 3.680596219576322,
+      "max_watts_climb_w_kg": 6.3147113506610575,
+      "median_watts_flat": 189.87673950195312,
+      "median_climb_flat_power_ratio": 1.3321638139025498
+    },
+    "cardiac_drift": {
+      "n_rides_valid": 52,
+      "median_drift_pct": 2.6119923464146826,
+      "iqr_drift_pct": 6.71776102648157,
+      "pct_rides_low_drift_lt5": 76.92307692307693
+    },
+    "literature_normalized_scores": {
+      "mmp_5s_w_kg_pct_p90_valenzuela": 0.9688688651722739,
+      "mmp_30s_w_kg_pct_p90_valenzuela": 1.0930506478209658,
+      "mmp_60s_w_kg_pct_p90_valenzuela": 0.9643786634077897,
+      "mmp_300s_w_kg_pct_p90_valenzuela": 0.8682956259426847,
+      "mmp_1200s_w_kg_pct_p90_valenzuela": 0.7845278393836816,
+      "mmp_3600s_w_kg_pct_p90_valenzuela": 0.8273986526590694
+    }
+  },
+  "annual_profiles": {
+    "2023": {
+      "n_rides": 216,
+      "date_start": "2023-01-01",
+      "date_end": "2023-10-02",
+      "total_hours": 523.0508333333332,
+      "total_distance_km": 17946.399141101632,
+      "total_work_kj": 342257.802284196,
+      "median_avg_watts": 178.57220458984375,
+      "bioenergetics": {
+        "mmp_5s": 1311.8,
+        "mmp_30s": 1005.3333333333334,
+        "mmp_60s": 710.2166666666667,
+        "mmp_180s": 490.51666666666665,
+        "mmp_300s": 431.76,
+        "mmp_480s": 381.26666666666665,
+        "mmp_1200s": 337.0991666666667,
+        "mmp_3600s": 315.9533333333333,
+        "mmp_5s_w_kg": 20.181538461538462,
+        "mmp_30s_w_kg": 15.466666666666667,
+        "mmp_60s_w_kg": 10.926410256410257,
+        "mmp_180s_w_kg": 7.546410256410256,
+        "mmp_300s_w_kg": 6.642461538461538,
+        "mmp_480s_w_kg": 5.865641025641025,
+        "mmp_1200s_w_kg": 5.186141025641026,
+        "mmp_3600s_w_kg": 4.860820512820513,
+        "cp_w_kg": 4.8273613870699315,
+        "w_prime_j_kg": 502.40823236477047,
+        "cp_watts": 313.7784901595455,
+        "w_prime_joules": 32656.53510371008,
+        "w_prime_kj": 32.656535103710084
+      },
+      "signature_1_bioenergetic_valenzuela": {
+        "raw": {
+          "dominant_profile": "Polyvalent_Puncheur",
+          "min_rms_z_distance": 1.3884538766882062,
+          "dominant_probability_pct": 99.15150421512095,
+          "second_profile": "Sprinteur",
+          "second_probability_pct": 0.8382085885570381,
+          "variables_used": [
+            "poids_kg",
+            "cp_watts",
+            "w_prime_kj"
+          ],
+          "rms_z_distances": {
+            "Grimpeur": 4.398131628097493,
+            "Rouleur_CLM": 2.8361021561019926,
+            "Polyvalent_Puncheur": 1.3884538766882062,
+            "Sprinteur": 2.260507844800434,
+            "Classement_General": 4.076176440040758
+          },
+          "membership_probabilities_pct": {
+            "Grimpeur": 4.4765984358847425e-10,
+            "Rouleur_CLM": 0.010287169063664574,
+            "Polyvalent_Puncheur": 99.15150421512095,
+            "Sprinteur": 0.8382085885570381,
+            "Classement_General": 2.6810659713089905e-08
+          },
+          "z_scores_detail": {
+            "Grimpeur": {
+              "poids_kg": 0.4090909090909084,
+              "cp_watts": -1.6390857658721338,
+              "w_prime_kj": 7.4281039259308335
+            },
+            "Rouleur_CLM": {
+              "poids_kg": -1.4074074074074063,
+              "cp_watts": -2.5635694918381913,
+              "w_prime_kj": 3.9468648532259567
+            },
+            "Polyvalent_Puncheur": {
+              "poids_kg": -0.8181818181818182,
+              "cp_watts": -1.4927921085316875,
+              "w_prime_kj": 1.698694421069822
+            },
+            "Sprinteur": {
+              "poids_kg": -2.338461538461539,
+              "cp_watts": -2.8490088540276153,
+              "w_prime_kj": -1.320769976953315
+            },
+            "Classement_General": {
+              "poids_kg": 0.2666666666666673,
+              "cp_watts": -3.1175629100189375,
+              "w_prime_kj": 6.328928305960906
+            }
+          },
+          "hybrid_profile_note": "Polyvalent_Puncheur pur (99.2%)"
+        },
+        "relative": {
+          "dominant_profile": "Sprinteur",
+          "min_rms_z_distance": 1.3773940349987952,
+          "dominant_probability_pct": 51.55644439345941,
+          "second_profile": "Polyvalent_Puncheur",
+          "second_probability_pct": 48.44355241029016,
+          "variables_used": [
+            "poids_kg",
+            "cp_w_kg",
+            "w_prime_j_kg"
+          ],
+          "rms_z_distances": {
+            "Grimpeur": 3.623709365919948,
+            "Rouleur_CLM": 3.7357708069416695,
+            "Polyvalent_Puncheur": 1.3923839160023275,
+            "Sprinteur": 1.3773940349987952,
+            "Classement_General": 4.422215040399871
+          },
+          "membership_probabilities_pct": {
+            "Grimpeur": 2.4771406011862437e-06,
+            "Rouleur_CLM": 7.18948164007821e-07,
+            "Polyvalent_Puncheur": 48.44355241029016,
+            "Sprinteur": 51.55644439345941,
+            "Classement_General": 1.6166738203647993e-10
+          },
+          "z_scores_detail": {
+            "Grimpeur": {
+              "poids_kg": 0.4090909090909084,
+              "cp_w_kg": -1.9898347778549366,
+              "w_prime_j_kg": 5.93860344617369
+            },
+            "Rouleur_CLM": {
+              "poids_kg": -1.4074074074074063,
+              "cp_w_kg": -1.461629853088919,
+              "w_prime_j_kg": 6.144167407234837
+            },
+            "Polyvalent_Puncheur": {
+              "poids_kg": -0.8181818181818182,
+              "cp_w_kg": -0.8459775216584037,
+              "w_prime_j_kg": 2.105017684930777
+            },
+            "Sprinteur": {
+              "poids_kg": -2.338461538461539,
+              "cp_w_kg": 0.2089386800398942,
+              "w_prime_j_kg": 0.42377499226602
+            },
+            "Classement_General": {
+              "poids_kg": 0.2666666666666673,
+              "cp_w_kg": -3.116001511541477,
+              "w_prime_j_kg": 6.9919511625566
+            }
+          },
+          "hybrid_profile_note": "Sprinteur (51.6%) / Polyvalent_Puncheur (48.4%)"
+        }
+      },
+      "signature_2_4points_5s_30s_60s_cp": {
+        "raw_watts": {
+          "5s": 1311.8,
+          "30s": 1005.3333333333334,
+          "60s": 710.2166666666667,
+          "CP": 313.7784901595455
+        },
+        "relative_w_kg": {
+          "5s": 20.181538461538462,
+          "30s": 15.466666666666667,
+          "60s": 10.926410256410257,
+          "CP": 4.8273613870699315
+        }
+      },
+      "explosiveness_ratios": {
+        "ratio_5s_cp": 4.1806562308748285,
+        "ratio_5s_avg_watts": 7.346048076255919,
+        "ratio_30s_cp": 3.203958731594878,
+        "ratio_30s_avg_watts": 5.629842201043821,
+        "ratio_60s_cp": 2.2634332465094915,
+        "ratio_60s_avg_watts": 3.977196049620032
+      },
+      "climbing_performance": {
+        "n_rides_with_climb": 157,
+        "total_climb_hours": 25.902222222222225,
+        "median_watts_climb": 235.7569122314453,
+        "max_watts_climb": 435.8840637207031,
+        "median_watts_climb_w_kg": 3.6270294189453125,
+        "max_watts_climb_w_kg": 6.705908672626202,
+        "median_watts_flat": 174.29839324951172,
+        "median_climb_flat_power_ratio": 1.3590620006515142
+      },
+      "cardiac_drift": {
+        "n_rides_valid": 168,
+        "median_drift_pct": 1.3898484286085924,
+        "iqr_drift_pct": 8.064111274901805,
+        "pct_rides_low_drift_lt5": 75.0
+      },
+      "literature_normalized_scores": {
+        "mmp_5s_w_kg_pct_p90_valenzuela": 0.9688688651722739,
+        "mmp_30s_w_kg_pct_p90_valenzuela": 1.0930506478209658,
+        "mmp_60s_w_kg_pct_p90_valenzuela": 0.9643786634077897,
+        "mmp_300s_w_kg_pct_p90_valenzuela": 0.8682956259426847,
+        "mmp_1200s_w_kg_pct_p90_valenzuela": 0.7869713240729934,
+        "mmp_3600s_w_kg_pct_p90_valenzuela": 0.8438924501424502
+      }
+    }
+  }
+}
